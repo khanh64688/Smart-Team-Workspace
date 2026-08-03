@@ -1,0 +1,29 @@
+# Giữ build context nhỏ và tránh mang rác từ máy host vào ảnh.
+# QUAN TRỌNG: loại .venv và __pycache__ — đây là nguồn lỗi "chạy máy tôi thì được"
+# vì file .pyc biên dịch bởi Python khác phiên bản trong container.
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+
+*.db
+*.sqlite3
+
+.env
+.env.*
+!.env.example
+
+.git/
+.gitignore
+.dockerignore
+Dockerfile
+README.md

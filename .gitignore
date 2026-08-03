@@ -1,0 +1,45 @@
+# ---------- Biến môi trường ----------
+# KHÔNG BAO GIỜ commit .env. Chỉ commit .env.example.
+.env
+.env.*
+!.env.example
+
+# ---------- Python / Backend ----------
+__pycache__/
+*.py[cod]
+*.egg-info/
+.Python
+venv/
+.venv/
+env/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+
+# CSDL SQLite dùng khi chạy local, không phải nguồn sự thật
+*.db
+*.sqlite3
+
+# ---------- Node / Frontend ----------
+node_modules/
+dist/
+dist-ssr/
+.vite/
+*.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ---------- IDE / OS ----------
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+desktop.ini

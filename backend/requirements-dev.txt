@@ -1,0 +1,10 @@
+# Dependency chỉ dùng khi phát triển và chạy CI.
+# Ảnh Docker tầng `runtime` (deploy) KHÔNG cài các gói này.
+-r requirements.txt
+
+pytest==9.1.1
+pytest-cov==7.1.0
+
+# Linter + formatter. Không ghim phiên bản chặt: bộ rule đã được liệt kê
+# tường minh trong ruff.toml ở gốc repo nên bản mới không tự bật thêm rule.
+ruff>=0.6

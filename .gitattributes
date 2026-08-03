@@ -1,0 +1,20 @@
+# Chuẩn hoá xuống dòng để nhóm dùng lẫn Windows/macOS/Linux không bị
+# "toàn bộ file thay đổi" trong diff, và script vào container không lỗi CRLF.
+* text=auto eol=lf
+
+# Các file BẮT BUỘC là LF: script chạy trong container Linux, CRLF sẽ lỗi
+# "exec format error" hoặc "no such file or directory".
+*.sh            text eol=lf
+Dockerfile      text eol=lf
+*.Dockerfile    text eol=lf
+docker-entrypoint.sh text eol=lf
+
+# File nhị phân: không đụng vào
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.woff binary
+*.woff2 binary

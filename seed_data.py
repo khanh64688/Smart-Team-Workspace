@@ -24,12 +24,12 @@ from __future__ import annotations
 import argparse
 import random
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
-from app.core.database import SessionLocal, engine, Base
+from app.core.database import Base, SessionLocal, engine
 from app.core.security import hash_password
 from app.models.comment import Comment
 from app.models.project import Project
@@ -43,7 +43,7 @@ from app.models.user import User
 # --------------------------------------------------------------------------- #
 
 DEFAULT_PASSWORD = "Password123"
-NOW = datetime.now(timezone.utc)
+NOW = datetime.now(UTC)
 random.seed(42)  # cố định để mỗi lần seed ra kết quả giống nhau, dễ quay video demo
 
 
@@ -341,8 +341,8 @@ def seed(reset: bool = False) -> None:
         print("SEED HOÀN TẤT")
         print("=" * 62)
         print(f"  Người dùng      : {len(users)}")
-        print(f"  Dự án           : 2")
-        print(f"  Sprint          : 3")
+        print("  Dự án           : 2")
+        print("  Sprint          : 3")
         print(f"  Task            : {len(all_tasks)}  (quá hạn: {len(overdue)})")
         print(f"  Bình luận       : {n_comments}")
         print("-" * 62)
@@ -370,6 +370,6 @@ if __name__ == "__main__":
 
     try:
         seed(reset=args.reset)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         print(f"\nSeed thất bại: {exc}\n", file=sys.stderr)
         sys.exit(1)

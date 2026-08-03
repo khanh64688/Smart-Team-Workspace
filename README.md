@@ -70,19 +70,40 @@ API Router  →  Service (business logic)  →  Repository (truy vấn DB)  → 
 git clone <repo-url>
 cd smart-team-workspace
 
-# 2. Tạo file biến môi trường
-cp .env.example .env
-#    Mở .env và điền AI_API_KEY (Gemini hoặc OpenAI) nếu muốn thử tính năng AI
-
-# 3. Khởi động toàn bộ hệ thống
+# 2. Khởi động toàn bộ hệ thống
 docker compose up --build
 
-# 4. Chạy migration
-docker compose exec backend alembic upgrade head
-
-# 5. Seed dữ liệu demo
+# 3. Seed dữ liệu demo
 docker compose exec backend python -m app.scripts.seed_data
 ```
+
+Chỉ có vậy. **Không cần tạo `.env`, không cần chạy migration bằng tay:**
+
+- Mọi biến môi trường đã có giá trị mặc định ngay trong `docker-compose.yml`.
+- `alembic upgrade head` được chạy tự động lúc container backend khởi động.
+- Backend chỉ khởi động sau khi PostgreSQL báo sẵn sàng (`healthcheck`), nên
+  lần `up` đầu tiên không còn lỗi *connection refused*.
+
+Chỉ tạo `.env` khi cần một trong hai việc sau:
+
+```bash
+cp .env.example .env
+```
+
+- **Dùng tính năng AI** — điền `AI_API_KEY` (Gemini hoặc OpenAI).
+- **Cổng bị chiếm** — máy đã cài sẵn PostgreSQL ở `5432` hoặc đang chạy project
+  khác ở `5173`/`8000`, sửa `POSTGRES_PORT` / `FRONTEND_PORT` / `BACKEND_PORT`.
+
+Lệnh dùng hằng ngày:
+
+| Việc | Lệnh |
+|---|---|
+| Dừng hệ thống | `docker compose down` |
+| Dừng và **xoá sạch dữ liệu CSDL** | `docker compose down -v` |
+| Xem log backend | `docker compose logs -f backend` |
+| Vào shell container | `docker compose exec backend sh` |
+| Tạo migration mới | `docker compose exec backend alembic revision --autogenerate -m "mô tả"` |
+| Cài thêm thư viện Python | thêm vào `requirements.txt` rồi `docker compose up --build backend` |
 
 | Dịch vụ | Địa chỉ |
 |---|---|
@@ -148,6 +169,11 @@ smart-team-workspace/
 │       ├── hooks/           # useAuth, useProjects, useTasks, ...
 │       ├── pages/           # Login, Projects, Board, Dashboard, ...
 │       └── types/api.ts     # Type sinh từ OpenAPI
+│   ├── package.json         # dependency + script dev/build/lint
+│   ├── vite.config.ts
+│   ├── eslint.config.js
+│   ├── Dockerfile           # deps → dev | deps → builder → runtime (nginx)
+│   └── nginx.conf           # SPA fallback cho bản build production
 ├── docs/
 │   ├── backlog.md
 │   ├── permission-matrix.md
@@ -156,10 +182,18 @@ smart-team-workspace/
 │   ├── openapi.yaml
 │   ├── test-report.md
 │   └── scrum/
-├── infra/
-├── .github/workflows/ci.yml
-└── docker-compose.yml
+├── .github/
+│   ├── workflows/ci.yml         # CI: ruff · pytest · build frontend · Docker
+│   ├── pull_request_template.md # Mẫu PR, tự hiện khi mở PR
+│   └── BRANCH_PROTECTION.md     # Cách bật chặn merge khi CI đỏ
+├── .env.example             # Mẫu biến môi trường — copy thành .env khi cần
+├── ruff.toml                # Cấu hình lint dùng chung toàn repo
+└── docker-compose.yml       # db + backend + frontend
 ```
+
+> `backend/Dockerfile` chia 3 tầng: `builder` (cài dependency) → `runtime`
+> (ảnh gọn để deploy, chạy bằng user thường) → `dev` (thêm pytest/ruff và hot
+> reload). Compose dùng tầng `dev`; deploy dùng tầng `runtime`.
 
 ---
 
@@ -243,8 +277,14 @@ Review chéo: TV2 ↔ frontend auth · TV3 ↔ migration · TV4 ↔ logic Kanban
 
 ## Kiểm thử
 
+Chạy đúng những gì CI sẽ chạy, **trước khi mở PR**:
+
 ```bash
-# Backend
+# Backend — lint
+docker compose exec backend ruff check .
+docker compose exec backend ruff check --fix .      # tự sửa phần sửa được
+
+# Backend — test
 docker compose exec backend pytest -v
 docker compose exec backend pytest --cov=app --cov-report=term-missing
 
@@ -254,6 +294,31 @@ docker compose exec frontend npm run build
 ```
 
 Mục tiêu: các service quan trọng (auth, project, task) có unit test; luồng chính có integration test. Xem [`docs/test-report.md`](docs/test-report.md).
+
+### CI tự động
+
+Mỗi Pull Request vào `develop` (và `main`) sẽ tự chạy 4 job:
+
+| Job | Kiểm tra | Đỏ khi nào |
+|---|---|---|
+| **Lint backend (ruff)** | `ruff check` toàn repo | Có lỗi lint chưa sửa |
+| **Test backend (pytest)** | pytest + coverage, có sẵn PostgreSQL để integration test | Có test hỏng |
+| **Build frontend** | `npm ci` → `npm run lint` → `npm run build` | Lỗi TypeScript, lỗi ESLint hoặc build hỏng |
+| **Kiểm tra cấu hình Docker** | `docker compose config` + build thử hai ảnh | File Docker hỏng, người khác clone về không chạy được |
+
+Job thứ năm — **`CI passed`** — chờ cả 4 job trên rồi mới kết luận. **Đây là job
+duy nhất cần đặt làm required status check** trong Branch protection; thêm job
+mới về sau chỉ cần sửa `needs:` trong `ci.yml`, không phải vào lại Settings.
+
+**CI đỏ thì không merge.** Việc chặn nút Merge phải bật một lần trên GitHub —
+xem [`.github/BRANCH_PROTECTION.md`](.github/BRANCH_PROTECTION.md).
+
+Hai điểm đã xử lý sẵn để CI không đỏ oan trong giai đoạn đầu:
+
+- Nhánh chưa có test → `pytest` báo cảnh báo, không làm đỏ PR.
+- Nhánh chưa có `frontend/` → job build tự bỏ qua kèm cảnh báo.
+
+Cả hai tự hết tác dụng ngay khi test và frontend thật xuất hiện.
 
 ---
 
