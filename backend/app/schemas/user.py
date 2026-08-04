@@ -14,7 +14,10 @@ from pydantic import (
 )
 
 from app.models.user import UserRole
-from app.schemas.common import StrictRequest
+from app.schemas.common import (
+    PaginationMeta,
+    StrictRequest,
+)
 
 
 class UserResponse(BaseModel):
@@ -69,6 +72,16 @@ class UserSearchResponse(BaseModel):
     role: UserRole
     is_active: bool
     avatar: str | None
+
+
+UserListItemResponse = (
+    UserSearchResponse | UserPublicResponse
+)
+
+
+class UserListResponse(BaseModel):
+    data: list[UserListItemResponse]
+    meta: PaginationMeta
 
 
 class UserUpdateRequest(StrictRequest):

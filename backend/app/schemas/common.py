@@ -28,3 +28,9 @@ class ErrorContent(BaseModel):
 
 class ErrorResponse(BaseModel):
     error: ErrorContent
+
+
+class PaginationMeta(BaseModel):
+    page: int
+    size: int
+    total: int
