@@ -1,60 +1,17 @@
-# =============================================================
-#  Cấu hình ruff — dùng chung cho toàn repo (backend/ và seed_data.py)
-#  Chạy local:  ruff check .          -> báo lỗi
-#               ruff check --fix .    -> tự sửa phần sửa được
-#               ruff format .         -> định dạng lại code
-# =============================================================
-
-line-length = 120
+line-length = 100
 target-version = "py312"
 
-exclude = [
-    ".git",
-    ".venv",
-    "venv",
-    "__pycache__",
-    ".ruff_cache",
-    ".pytest_cache",
-    "node_modules",
-    "frontend",
-    # Migration do Alembic sinh tự động, không lint.
-    "backend/alembic/versions",
-]
+exclude = ["frontend", "backend/alembic/versions"]
 
 [lint]
-# Liệt kê tường minh từng nhóm rule. Nhờ vậy nâng phiên bản ruff
-# không tự bật thêm rule mới làm CI đỏ bất ngờ.
-select = [
-    "E",    # pycodestyle — lỗi
-    "W",    # pycodestyle — cảnh báo
-    "F",    # pyflakes — biến/import không dùng, tên chưa định nghĩa
-    "I",    # isort — thứ tự import
-    "UP",   # pyupgrade — cú pháp cũ
-    "B",    # flake8-bugbear — bẫy logic thường gặp
-    "C4",   # comprehension viết gọn được
-    "SIM",  # đơn giản hoá biểu thức
-    "RUF",  # rule riêng của ruff
-]
-
-ignore = [
-    # Độ dài dòng để `ruff format` lo, không chặn merge vì lệch vài ký tự.
-    "E501",
-    # FastAPI bắt buộc viết `db: Session = Depends(get_db)` — bugbear hiểu nhầm
-    # đây là mutable default argument.
-    "B008",
-]
+select = ["E", "F", "I", "UP", "B", "C4"]
+# B008: FastAPI bắt buộc viết `db: Session = Depends(get_db)`.
+ignore = ["B008", "E501"]
 
 [lint.per-file-ignores]
-# conftest.py phải chỉnh sys.path trước khi import app -> E402 là cố ý.
-"backend/tests/conftest.py" = ["E402"]
-# File test được phép dùng assert trần và import trong hàm.
-"backend/tests/*" = ["ARG001"]
-# __init__.py thường chỉ re-export.
+"backend/tests/*" = ["E402"]
+"backend/app/scripts/*" = ["E402"]
 "**/__init__.py" = ["F401"]
 
 [lint.isort]
 known-first-party = ["app"]
-
-[format]
-quote-style = "double"
-indent-style = "space"

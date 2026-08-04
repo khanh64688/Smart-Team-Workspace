@@ -1,9 +1,5 @@
-/**
- * Trang tạm để hạ tầng (Docker + CI) có thứ để build.
- * TV5 — Frontend Foundation: thay toàn bộ nội dung src/ bằng router, layout,
- * AuthContext và các trang thật. Giữ nguyên các file cấu hình ở thư mục gốc
- * (package.json, vite.config.ts, tsconfig*, eslint.config.js, Dockerfile).
- */
+// Trang tạm để hạ tầng có thứ để build. TV5 thay toàn bộ src/ bằng router,
+// layout, AuthContext và các trang thật; giữ nguyên file cấu hình ở thư mục gốc.
 import { useEffect, useState } from "react";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
