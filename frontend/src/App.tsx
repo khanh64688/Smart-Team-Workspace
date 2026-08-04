@@ -1,56 +1,86 @@
-/**
- * Trang tạm để hạ tầng (Docker + CI) có thứ để build.
- * TV5 — Frontend Foundation: thay toàn bộ nội dung src/ bằng router, layout,
- * AuthContext và các trang thật. Giữ nguyên các file cấu hình ở thư mục gốc
- * (package.json, vite.config.ts, tsconfig*, eslint.config.js, Dockerfile).
- */
-import { useEffect, useState } from "react";
+import React from "react";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import { Login } from "./pages/Login";
+import { Register } from "./pages/Register";
+import { Projects } from "./pages/Projects";
+import { ProjectDetail } from "./pages/ProjectDetail";
 
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
+// Route Guard for authenticated users
+const PrivateRoute: React.FC<{ children: React.ReactElement }> = ({ children }) => {
+  const { user, loading } = useAuth();
 
-type BackendStatus = "checking" | "ok" | "error";
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-950">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-cyan-500 border-t-transparent" />
+      </div>
+    );
+  }
+
+  return user ? children : <Navigate to="/login" replace />;
+};
+
+// Route Guard for guest-only users (login/register)
+const GuestRoute: React.FC<{ children: React.ReactElement }> = ({ children }) => {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-950">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-cyan-500 border-t-transparent" />
+      </div>
+    );
+  }
+
+  return !user ? children : <Navigate to="/projects" replace />;
+};
 
 export default function App() {
-  const [status, setStatus] = useState<BackendStatus>("checking");
-  const [message, setMessage] = useState("");
-
-  useEffect(() => {
-    const controller = new AbortController();
-
-    fetch(`${API_URL}/`, { signal: controller.signal })
-      .then((response) => {
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        return response.json();
-      })
-      .then((data: { message?: string }) => {
-        setStatus("ok");
-        setMessage(data.message ?? "");
-      })
-      .catch((error: unknown) => {
-        if (controller.signal.aborted) return;
-        setStatus("error");
-        setMessage(error instanceof Error ? error.message : String(error));
-      });
-
-    return () => controller.abort();
-  }, []);
-
   return (
-    <main className="mx-auto flex min-h-screen max-w-xl flex-col justify-center gap-4 p-8">
-      <h1 className="text-2xl font-bold">Smart Team Workspace</h1>
-      <p className="text-sm text-gray-500">
-        Khung frontend đã sẵn sàng. Chờ TV5 dựng các trang thật.
-      </p>
+    <AuthProvider>
+      <Router>
+        <Routes>
+          {/* Guest routes */}
+          <Route
+            path="/login"
+            element={
+              <GuestRoute>
+                <Login />
+              </GuestRoute>
+            }
+          />
+          <Route
+            path="/register"
+            element={
+              <GuestRoute>
+                <Register />
+              </GuestRoute>
+            }
+          />
 
-      <div className="rounded-lg border p-4 text-sm">
-        <div className="font-medium">Kết nối backend</div>
-        <div className="text-gray-500">{API_URL}</div>
-        <div className="mt-2">
-          {status === "checking" && "Đang kiểm tra…"}
-          {status === "ok" && `Kết nối được — ${message}`}
-          {status === "error" && `Không kết nối được — ${message}`}
-        </div>
-      </div>
-    </main>
+          {/* Protected routes */}
+          <Route
+            path="/projects"
+            element={
+              <PrivateRoute>
+                <Projects />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/projects/:id"
+            element={
+              <PrivateRoute>
+                <ProjectDetail />
+              </PrivateRoute>
+            }
+          />
+
+          {/* Catch all */}
+          <Route path="*" element={<Navigate to="/projects" replace />} />
+        </Routes>
+      </Router>
+    </AuthProvider>
   );
 }

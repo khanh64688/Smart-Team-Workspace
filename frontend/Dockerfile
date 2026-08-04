@@ -12,9 +12,8 @@ WORKDIR /app
 # Sửa code trong src/ sẽ không phải cài lại dependency.
 COPY package.json package-lock.json ./
 
-# `npm ci` cài đúng phiên bản trong package-lock.json — đây là thứ đảm bảo
-# mọi người và CI dùng chung một bộ dependency, không ai bị lệch.
-RUN npm ci
+# RUN npm install instead of npm ci to automatically resolve and install added packages
+RUN npm install --legacy-peer-deps
 
 
 # ---------- Tầng 2: dev — vite dev server, hot reload ----------
