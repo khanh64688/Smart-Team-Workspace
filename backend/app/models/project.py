@@ -26,3 +26,5 @@ class Project(Base):
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
 
     members = relationship("ProjectMember", back_populates="project", cascade="all, delete-orphan")
+
+    

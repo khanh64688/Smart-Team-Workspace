@@ -1,3 +1,11 @@
+from app.models.user import User, UserRole
+from app.models.refresh_token import RefreshToken
+
+__all__ = [
+    "User",
+    "UserRole",
+    "RefreshToken",
+]
 from app.models.project import Project, ProjectStatus
 from app.models.project_member import ProjectMember, ProjectRole
 from app.models.user import SystemRole, User
