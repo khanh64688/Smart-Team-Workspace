@@ -34,7 +34,7 @@ pydantic-settings==2.14.2
 pydantic_core==2.46.4
 Pygments==2.20.0
 python-dotenv==1.2.2
-python-jose==3.5.0
+python-jose[cryptography]==3.3.0
 python-multipart==0.0.32
 PyYAML==6.0.3
 rich==15.0.0
@@ -53,3 +53,4 @@ urllib3==2.7.0
 uvicorn==0.51.0
 watchfiles==1.2.0
 websockets==16.1.1
+pytest==9.1.1
