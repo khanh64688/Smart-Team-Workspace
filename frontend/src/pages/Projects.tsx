@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import { api, Project } from "../services/api";
+import { api } from "../services/api";
+import type { Project } from "../services/api";
 import { Layout } from "../components/Layout";
 import { 
   FolderGit2, 

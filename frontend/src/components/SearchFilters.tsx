@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Search, SlidersHorizontal, UserMinus } from "lucide-react";
-import { MemberOut, Sprint } from "../services/api";
+import type { MemberOut, Sprint } from "../services/api";
 
 interface SearchFiltersProps {
   members: MemberOut[];

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
-import { api, Project, MemberOut, Sprint, Task } from "../services/api";
+import { api } from "../services/api";
+import type { Project, MemberOut, Sprint, Task } from "../services/api";
 import { Layout } from "../components/Layout";
 import { SearchFilters } from "../components/SearchFilters";
 import { KanbanBoard } from "../components/KanbanBoard";

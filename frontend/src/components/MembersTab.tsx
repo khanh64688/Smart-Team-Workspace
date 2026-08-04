@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext";
-import { api, MemberOut, User } from "../services/api";
+import { api } from "../services/api";
+import type { MemberOut, User } from "../services/api";
 import { 
   Users, 
   Plus, 

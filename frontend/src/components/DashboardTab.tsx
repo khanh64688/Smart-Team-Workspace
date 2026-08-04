@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { api, DashboardStats } from "../services/api";
+import { api } from "../services/api";
+import type { DashboardStats } from "../services/api";
 import { 
   BarChart as RechartsBarChart, 
   Bar, 

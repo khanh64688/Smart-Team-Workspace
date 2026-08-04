@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useRef } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import { api, Project, AppNotification } from "../services/api";
+import { api } from "../services/api";
+import type { Project, AppNotification } from "../services/api";
 import { 
   Bell, 
   FolderGit2, 

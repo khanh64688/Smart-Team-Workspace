@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import { api, Task, MemberOut, Sprint } from "../services/api";
+import { api } from "../services/api";
+import type { Task, MemberOut, Sprint } from "../services/api";
 import { 
   DndContext, 
   DragEndEvent, 

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
-import { api, Sprint, MemberOut, Task } from "../services/api";
+import { api } from "../services/api";
+import type { Sprint, MemberOut, Task } from "../services/api";
 import { 
   Plus, 
   Calendar, 
