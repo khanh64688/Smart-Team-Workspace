@@ -5,6 +5,5 @@
 pytest==9.1.1
 pytest-cov==7.1.0
 
-# Linter + formatter. Không ghim phiên bản chặt: bộ rule đã được liệt kê
-# tường minh trong ruff.toml ở gốc repo nên bản mới không tự bật thêm rule.
+# Linter + formatter.
 ruff>=0.6
