@@ -5,13 +5,13 @@ import { api } from "../services/api";
 import type { Task, MemberOut, Sprint } from "../services/api";
 import { 
   DndContext, 
-  DragEndEvent, 
   PointerSensor, 
   useSensor, 
   useSensors, 
-  DragStartEvent, 
   DragOverlay,
-  useDroppable
+  useDroppable,
+  type DragEndEvent,
+  type DragStartEvent
 } from "@dnd-kit/core";
 import { 
   SortableContext, 
