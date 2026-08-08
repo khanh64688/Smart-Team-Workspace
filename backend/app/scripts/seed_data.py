@@ -29,7 +29,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
-from app.core.database import SessionLocal, engine, Base
+from app.database import Base, SessionLocal, engine
 from app.core.security import hash_password
 from app.models.comment import Comment
 from app.models.project import Project

@@ -2,7 +2,7 @@ import enum
 import uuid
 from datetime import datetime
 
-
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy import String, DateTime, ForeignKey, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -13,7 +13,8 @@ class Sprint(Base):
     __tablename__ = "sprints"
 
     # id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    
 
     project_id: Mapped[str] = mapped_column(
         ForeignKey("projects.id", ondelete="CASCADE")
