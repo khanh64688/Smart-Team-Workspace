@@ -70,33 +70,19 @@ API Router  →  Service (business logic)  →  Repository (truy vấn DB)  → 
 git clone <repo-url>
 cd smart-team-workspace
 
-# 2. Khởi động toàn bộ hệ thống
+# 2. Tạo file biến môi trường
+cp .env.example .env
+#    Mở .env và điền AI_API_KEY (Gemini hoặc OpenAI) nếu muốn thử tính năng AI
+
+# 3. Khởi động toàn bộ hệ thống
 docker compose up --build
 
-# 3. Seed dữ liệu demo
+# 4. Chạy migration
+docker compose exec backend alembic upgrade head
+
+# 5. Seed dữ liệu demo
 docker compose exec backend python -m app.scripts.seed_data
 ```
-
-Chỉ tạo `.env` khi cần một trong hai việc sau:
-
-```bash
-cp .env.example .env
-```
-
-- **Dùng tính năng AI** — điền `AI_API_KEY` (Gemini hoặc OpenAI).
-- **Cổng bị chiếm** — máy đã cài sẵn PostgreSQL ở `5432` hoặc đang chạy project
-  khác ở `5173`/`8000`, sửa `POSTGRES_PORT` / `FRONTEND_PORT` / `BACKEND_PORT`.
-
-Lệnh dùng hằng ngày:
-
-| Việc | Lệnh |
-|---|---|
-| Dừng hệ thống | `docker compose down` |
-| Dừng và **xoá sạch dữ liệu CSDL** | `docker compose down -v` |
-| Xem log backend | `docker compose logs -f backend` |
-| Vào shell container | `docker compose exec backend sh` |
-| Tạo migration mới | `docker compose exec backend alembic revision --autogenerate -m "mô tả"` |
-| Cài thêm thư viện Python | thêm vào `requirements.txt` rồi `docker compose up --build backend` |
 
 | Dịch vụ | Địa chỉ |
 |---|---|
@@ -155,17 +141,13 @@ smart-team-workspace/
 │   ├── alembic/versions/    # Migration
 │   └── tests/
 ├── frontend/
-│   ├── src/
-│   │   ├── lib/api.ts       # API client dùng chung (auth interceptor)
-│   │   ├── context/         # AuthContext
-│   │   ├── components/      # layout, ui, kanban, task, charts, filters
-│   │   ├── hooks/           # useAuth, useProjects, useTasks, ...
-│   │   ├── pages/           # Login, Projects, Board, Dashboard, ...
-│   │   └── types/api.ts     # Type sinh từ OpenAPI
-│   ├── package.json
-│   ├── vite.config.ts
-│   ├── Dockerfile
-│   └── nginx.conf           # SPA fallback cho bản build production
+│   └── src/
+│       ├── lib/api.ts       # API client dùng chung (auth interceptor)
+│       ├── context/         # AuthContext
+│       ├── components/      # layout, ui, kanban, task, charts, filters
+│       ├── hooks/           # useAuth, useProjects, useTasks, ...
+│       ├── pages/           # Login, Projects, Board, Dashboard, ...
+│       └── types/api.ts     # Type sinh từ OpenAPI
 ├── docs/
 │   ├── backlog.md
 │   ├── permission-matrix.md
@@ -174,14 +156,10 @@ smart-team-workspace/
 │   ├── openapi.yaml
 │   ├── test-report.md
 │   └── scrum/
-├── .github/workflows/ci.yml # CI: ruff · pytest · build frontend
-├── .env.example             # Mẫu biến môi trường — copy thành .env khi cần
-├── ruff.toml                # Cấu hình lint dùng chung toàn repo
-└── docker-compose.yml       # db + backend + frontend
+├── infra/
+├── .github/workflows/ci.yml
+└── docker-compose.yml
 ```
-
-> Cả hai `Dockerfile` đều chia tầng: tầng mặc định là ảnh gọn để deploy, tầng
-> `dev` thêm công cụ phát triển và hot reload. Compose dùng tầng `dev`.
 
 ---
 
@@ -266,11 +244,7 @@ Review chéo: TV2 ↔ frontend auth · TV3 ↔ migration · TV4 ↔ logic Kanban
 ## Kiểm thử
 
 ```bash
-# Backend — lint
-docker compose exec backend ruff check .
-docker compose exec backend ruff check --fix .      # tự sửa phần sửa được
-
-# Backend — test
+# Backend
 docker compose exec backend pytest -v
 docker compose exec backend pytest --cov=app --cov-report=term-missing
 

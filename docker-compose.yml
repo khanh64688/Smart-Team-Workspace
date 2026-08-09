@@ -25,8 +25,11 @@ services:
       context: ./backend
       target: dev
     environment:
-      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg2://${POSTGRES_USER:-stw}:${POSTGRES_PASSWORD:-stw}@db:5432/${POSTGRES_DB:-stw}}
+      # Backend dùng psycopg 3 (gói `psycopg`), KHÔNG phải psycopg2.
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://${POSTGRES_USER:-stw}:${POSTGRES_PASSWORD:-stw}@db:5432/${POSTGRES_DB:-stw}}
       SECRET_KEY: ${SECRET_KEY:-doi-secret-nay-truoc-khi-deploy}
+      APP_ENV: ${APP_ENV:-development}
+      API_V1_PREFIX: ${API_V1_PREFIX:-/api/v1}
       ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-15}
       REFRESH_TOKEN_EXPIRE_DAYS: ${REFRESH_TOKEN_EXPIRE_DAYS:-7}
       AI_PROVIDER: ${AI_PROVIDER:-none}
