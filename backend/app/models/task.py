@@ -1,12 +1,18 @@
-import enum
 import uuid
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy import String, DateTime, ForeignKey, Text, Integer
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
+
+if TYPE_CHECKING:
+    from app.models.comment import Comment
+    from app.models.project import Project
+    from app.models.sprint import Sprint
+    from app.models.user import User
 
 class Task(Base):
     __tablename__ = "tasks"

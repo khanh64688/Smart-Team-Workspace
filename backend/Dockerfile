@@ -19,8 +19,9 @@ EXPOSE 8000
 HEALTHCHECK --interval=15s --timeout=5s --start-period=20s --retries=5 \
     CMD curl -fsS http://localhost:8000/ || exit 1
 
-# Bỏ qua alembic khi module migration chưa được tích hợp.
-CMD ["sh", "-c", "[ -f alembic.ini ] && alembic upgrade head; uvicorn app.main:app --host 0.0.0.0 --port 8000"]
+# Bỏ qua alembic khi module migration chưa được tích hợp, nhưng nếu có alembic.ini mà
+# migration chết thì dừng luôn — không để container start với schema sai.
+CMD ["sh", "-c", "if [ -f alembic.ini ]; then alembic upgrade head || exit 1; fi; uvicorn app.main:app --host 0.0.0.0 --port 8000"]
 
 
 FROM base AS dev
@@ -28,4 +29,4 @@ FROM base AS dev
 COPY requirements-dev.txt .
 RUN pip install --no-cache-dir -r requirements-dev.txt
 
-CMD ["sh", "-c", "[ -f alembic.ini ] && alembic upgrade head; uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"]
+CMD ["sh", "-c", "if [ -f alembic.ini ]; then alembic upgrade head || exit 1; fi; uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"]

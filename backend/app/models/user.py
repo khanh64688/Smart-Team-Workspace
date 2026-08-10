@@ -106,8 +106,12 @@ class User(Base):
     comments = relationship(
         "Comment",
         back_populates="author",
-        cascade="all, delete-orphan"
+        passive_deletes=True,
     )
 
-    # assignee: Mapped["User | None"] = relationship(back_populates="tasks")
-    tasks = relationship("Task", back_populates='assignee', cascade="all, delete-orphan")
+
+    tasks = relationship(
+        "Task",
+        back_populates="assignee",
+        passive_deletes=True,
+    )
