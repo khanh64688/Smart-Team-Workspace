@@ -12,8 +12,10 @@ export default defineConfig({
     host: true,
     port: 5173,
     proxy: {
+      // Trong Docker, `localhost` là chính container frontend chứ không phải
+      // backend -> proxy trả 502. Compose set VITE_PROXY_TARGET=http://backend:8000.
       '/api': {
-        target: 'http://localhost:8000',
+        target: process.env.VITE_PROXY_TARGET || 'http://localhost:8000',
         changeOrigin: true,
       },
     },

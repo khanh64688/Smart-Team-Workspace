@@ -19,6 +19,22 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 15
     refresh_token_expire_days: int = 7
 
+    # Frontend chạy ở origin khác backend (5173 vs 8000) nên trình duyệt
+    # chặn request nếu backend không trả header CORS.
+    # Khai báo dạng chuỗi ngăn cách bởi dấu phẩy, không phải list[str]:
+    # pydantic-settings sẽ cố JSON-decode env value của field kiểu list.
+    cors_origins: str = (
+        "http://localhost:5173,http://127.0.0.1:5173"
+    )
+
+    @property
+    def cors_origin_list(self) -> list[str]:
+        return [
+            origin.strip()
+            for origin in self.cors_origins.split(",")
+            if origin.strip()
+        ]
+
     model_config = SettingsConfigDict(
         env_file=str(BASE_DIR / ".env"),
         env_file_encoding="utf-8",

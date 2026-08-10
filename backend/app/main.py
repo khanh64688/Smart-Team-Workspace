@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.router import api_router
 from app.core.config import settings
@@ -13,6 +14,18 @@ app = FastAPI(
     title=settings.app_name,
     version="0.1.0",
     description="API cho hệ thống Smart Team Workspace.",
+)
+
+
+# Phải add trước khi xử lý request: frontend gọi backend từ origin khác
+# (5173 → 8000) nên trình duyệt gửi preflight OPTIONS trước mỗi request
+# POST/PUT có Content-Type: application/json.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_origin_list,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
