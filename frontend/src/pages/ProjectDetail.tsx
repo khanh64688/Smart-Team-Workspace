@@ -69,7 +69,7 @@ export const ProjectDetail: React.FC = () => {
     return (
       <Layout>
         <div className="flex h-96 items-center justify-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-cyan-500 border-t-transparent" />
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-600 border-t-transparent" />
         </div>
       </Layout>
     );
@@ -78,7 +78,7 @@ export const ProjectDetail: React.FC = () => {
   if (!project) {
     return (
       <Layout>
-        <div className="text-center py-20 text-slate-500">
+        <div className="text-center py-20 text-slate-400 font-medium">
           Không tìm thấy dự án hoặc bạn không có quyền truy cập.
         </div>
       </Layout>
@@ -88,31 +88,28 @@ export const ProjectDetail: React.FC = () => {
   return (
     <Layout>
       <div className="space-y-6">
-        
-        {/* Project Header block */}
         <div className="space-y-2">
           <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-400">
+            <div className="h-10 w-10 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shadow-xs">
               <FolderGit2 className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-slate-100 leading-tight">{project.name}</h2>
+              <h2 className="text-xl font-bold text-slate-900 leading-tight">{project.name}</h2>
               <p className="text-xs text-slate-500 font-mono uppercase tracking-wider">Trạng thái: {project.status}</p>
             </div>
           </div>
           {project.description && (
-            <p className="text-xs text-slate-400 max-w-2xl leading-relaxed">{project.description}</p>
+            <p className="text-xs text-slate-600 max-w-2xl leading-relaxed">{project.description}</p>
           )}
         </div>
 
-        {/* Dynamic Nav Tabs */}
-        <div className="flex border-b border-slate-900 overflow-x-auto pb-px">
+        <div className="flex border-b border-slate-200 overflow-x-auto pb-px gap-1">
           <button
             onClick={() => handleTabChange("kanban")}
-            className={`flex items-center gap-2 px-4 py-3 text-xs font-bold uppercase tracking-wider border-b-2 transition shrink-0 ${
+            className={`flex items-center gap-2 px-4 py-3 text-xs font-bold uppercase tracking-wider border-b-2 transition shrink-0 rounded-t-xl ${
               activeTab === "kanban" 
-                ? "border-cyan-400 text-cyan-400" 
-                : "border-transparent text-slate-400 hover:text-slate-200"
+                ? "border-indigo-600 text-indigo-600 bg-indigo-50/50" 
+                : "border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50"
             }`}
           >
             <KanbanSquare className="h-4 w-4" />
@@ -121,10 +118,10 @@ export const ProjectDetail: React.FC = () => {
           
           <button
             onClick={() => handleTabChange("sprints")}
-            className={`flex items-center gap-2 px-4 py-3 text-xs font-bold uppercase tracking-wider border-b-2 transition shrink-0 ${
+            className={`flex items-center gap-2 px-4 py-3 text-xs font-bold uppercase tracking-wider border-b-2 transition shrink-0 rounded-t-xl ${
               activeTab === "sprints" 
-                ? "border-cyan-400 text-cyan-400" 
-                : "border-transparent text-slate-400 hover:text-slate-200"
+                ? "border-indigo-600 text-indigo-600 bg-indigo-50/50" 
+                : "border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50"
             }`}
           >
             <Layers className="h-4 w-4" />
@@ -133,10 +130,10 @@ export const ProjectDetail: React.FC = () => {
 
           <button
             onClick={() => handleTabChange("dashboard")}
-            className={`flex items-center gap-2 px-4 py-3 text-xs font-bold uppercase tracking-wider border-b-2 transition shrink-0 ${
+            className={`flex items-center gap-2 px-4 py-3 text-xs font-bold uppercase tracking-wider border-b-2 transition shrink-0 rounded-t-xl ${
               activeTab === "dashboard" 
-                ? "border-cyan-400 text-cyan-400" 
-                : "border-transparent text-slate-400 hover:text-slate-200"
+                ? "border-indigo-600 text-indigo-600 bg-indigo-50/50" 
+                : "border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50"
             }`}
           >
             <TrendingUp className="h-4 w-4" />
@@ -145,10 +142,10 @@ export const ProjectDetail: React.FC = () => {
 
           <button
             onClick={() => handleTabChange("members")}
-            className={`flex items-center gap-2 px-4 py-3 text-xs font-bold uppercase tracking-wider border-b-2 transition shrink-0 ${
+            className={`flex items-center gap-2 px-4 py-3 text-xs font-bold uppercase tracking-wider border-b-2 transition shrink-0 rounded-t-xl ${
               activeTab === "members" 
-                ? "border-cyan-400 text-cyan-400" 
-                : "border-transparent text-slate-400 hover:text-slate-200"
+                ? "border-indigo-600 text-indigo-600 bg-indigo-50/50" 
+                : "border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50"
             }`}
           >
             <Users className="h-4 w-4" />
@@ -156,14 +153,10 @@ export const ProjectDetail: React.FC = () => {
           </button>
         </div>
 
-        {/* Render Tab Contents */}
         <div className="space-y-6">
           {activeTab === "kanban" && (
             <>
-              {/* Search filter row */}
               <SearchFilters members={members} sprints={sprints} />
-              
-              {/* Kanban board view */}
               <KanbanBoard 
                 projectId={project.id} 
                 members={members} 
@@ -198,7 +191,6 @@ export const ProjectDetail: React.FC = () => {
           )}
         </div>
 
-        {/* Global Task details modal sync to ?task query string */}
         <TaskDetailModal 
           projectId={project.id}
           members={members}
@@ -210,3 +202,4 @@ export const ProjectDetail: React.FC = () => {
     </Layout>
   );
 };
+

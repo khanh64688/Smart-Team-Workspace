@@ -20,42 +20,36 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { 
-  Calendar, 
   AlertCircle, 
   User, 
   Clock, 
-  CheckCircle2, 
   HelpCircle,
-  TrendingUp,
   AlertOctagon
 } from "lucide-react";
 
 interface KanbanBoardProps {
-  projectId: string;
+  projectId?: string;
   members: MemberOut[];
   sprints: Sprint[];
   tasks: Task[];
   onTasksUpdated: () => void;
 }
 
-// Columns definition
 const COLUMNS: { id: Task["status"]; title: string; color: string; border: string; bg: string }[] = [
-  { id: "TODO", title: "Cần làm", color: "text-slate-300", border: "border-slate-800/80", bg: "bg-slate-900/10" },
-  { id: "IN_PROGRESS", title: "Đang làm", color: "text-blue-400", border: "border-blue-900/30", bg: "bg-blue-500/5" },
-  { id: "REVIEW", title: "Đánh giá", color: "text-amber-400", border: "border-amber-900/30", bg: "bg-amber-500/5" },
-  { id: "DONE", title: "Hoàn thành", color: "text-emerald-400", border: "border-emerald-950/30", bg: "bg-emerald-500/5" },
+  { id: "TODO", title: "Cần làm", color: "text-slate-700", border: "border-slate-200", bg: "bg-slate-100/60" },
+  { id: "IN_PROGRESS", title: "Đang làm", color: "text-indigo-700", border: "border-indigo-200/80", bg: "bg-indigo-50/40" },
+  { id: "REVIEW", title: "Đánh giá", color: "text-amber-700", border: "border-amber-200/80", bg: "bg-amber-50/40" },
+  { id: "DONE", title: "Hoàn thành", color: "text-emerald-700", border: "border-emerald-200/80", bg: "bg-emerald-50/40" },
 ];
 
-export const KanbanBoard: React.FC<KanbanBoardProps> = ({ projectId, members, sprints, tasks, onTasksUpdated }) => {
+export const KanbanBoard: React.FC<KanbanBoardProps> = ({ members, sprints, tasks, onTasksUpdated }) => {
   const { user } = useAuth();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   
-  // Local state for optimistic updates
   const [localTasks, setLocalTasks] = useState<Task[]>(tasks);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<{ text: string; isError: boolean } | null>(null);
 
-  // Sync localTasks when props tasks changes (or on update)
   useEffect(() => {
     setLocalTasks(tasks);
   }, [tasks]);
@@ -223,15 +217,13 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ projectId, members, sp
 
   return (
     <div className="relative space-y-4">
-      {/* Toast Alert */}
       {toastMessage && (
-        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 rounded-xl border border-red-800/80 bg-red-950/80 px-4 py-3 text-sm font-semibold text-red-200 shadow-2xl backdrop-blur animate-in fade-in slide-in-from-bottom-5">
-          <AlertOctagon className="h-5 w-5 text-red-400 shrink-0" />
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700 shadow-xl backdrop-blur animate-in fade-in slide-in-from-bottom-5">
+          <AlertOctagon className="h-5 w-5 text-rose-500 shrink-0" />
           <span>{toastMessage.text}</span>
         </div>
       )}
 
-      {/* Kanban columns flex row */}
       <DndContext 
         sensors={sensors} 
         onDragStart={handleDragStart} 
@@ -252,10 +244,9 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ projectId, members, sp
           })}
         </div>
 
-        {/* Drag Overlay for smooth card look when dragging */}
         <DragOverlay>
           {activeTask ? (
-            <div className="rotate-2 opacity-80 cursor-grabbing">
+            <div className="rotate-2 opacity-90 cursor-grabbing">
               <TaskCard task={activeTask} members={members} sprints={sprints} isOverlay />
             </div>
           ) : null}
@@ -263,8 +254,8 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ projectId, members, sp
       </DndContext>
 
       {filteredTasks.length === 0 && (
-        <div className="py-16 text-center border border-dashed border-slate-900 rounded-xl bg-slate-950/10">
-          <HelpCircle className="mx-auto h-8 w-8 text-slate-700 mb-2" />
+        <div className="py-16 text-center border border-dashed border-slate-200 rounded-2xl bg-white/60">
+          <HelpCircle className="mx-auto h-8 w-8 text-slate-300 mb-2" />
           <p className="text-sm text-slate-500 font-semibold">Không tìm thấy task phù hợp</p>
         </div>
       )}
@@ -272,7 +263,6 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ projectId, members, sp
   );
 };
 
-// --- Kanban Column Component ---
 interface ColumnProps {
   column: typeof COLUMNS[0];
   tasks: Task[];
@@ -288,19 +278,17 @@ const KanbanColumn: React.FC<ColumnProps> = ({ column, tasks, members, sprints }
   return (
     <div 
       ref={setNodeRef}
-      className={`rounded-2xl border ${column.border} ${column.bg} p-4 flex flex-col min-h-[500px] shadow-sm`}
+      className={`rounded-2xl border ${column.border} ${column.bg} p-4 flex flex-col min-h-[500px] shadow-xs backdrop-blur-xs`}
     >
-      {/* Column Title Header */}
       <div className="flex items-center justify-between mb-4 px-1.5">
         <h4 className={`font-bold text-sm tracking-wide flex items-center gap-2 ${column.color}`}>
           <span>{column.title}</span>
-          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-900 border border-slate-800 text-[10px] font-bold text-slate-400 font-mono">
+          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white border border-slate-200 text-[10px] font-bold text-slate-600 font-mono shadow-xs">
             {tasks.length}
           </span>
         </h4>
       </div>
 
-      {/* Task List container */}
       <div className="flex-1 space-y-3">
         <SortableContext 
           items={tasks.map((t) => t.id)} 
@@ -320,7 +308,6 @@ const KanbanColumn: React.FC<ColumnProps> = ({ column, tasks, members, sprints }
   );
 };
 
-// --- Sortable Task Card Wrapper ---
 interface SortableTaskCardProps {
   task: Task;
   members: MemberOut[];
@@ -347,7 +334,7 @@ const SortableTaskCard: React.FC<SortableTaskCardProps> = ({ task, members, spri
       <div 
         ref={setNodeRef} 
         style={style} 
-        className="rounded-xl border border-dashed border-slate-900 bg-slate-950/20 h-28"
+        className="rounded-xl border border-dashed border-indigo-300 bg-indigo-50/30 h-28"
       />
     );
   }
@@ -365,7 +352,6 @@ const SortableTaskCard: React.FC<SortableTaskCardProps> = ({ task, members, spri
   );
 };
 
-// --- Core Task Card View ---
 interface TaskCardProps {
   task: Task;
   members: MemberOut[];
@@ -379,30 +365,27 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, members, sprints, isOverlay =
   const assignee = members.find((m) => m.user_id === task.assignee_id);
   const sprint = sprints.find((s) => s.id === task.sprint_id);
 
-  // Check if overdue
   const now = new Date();
   const deadlineDate = new Date(task.deadline);
   const isOverdue = task.status !== "DONE" && deadlineDate < now;
 
-  // Handle opening details modal on double-click or click action
   const handleOpenDetails = (e: React.MouseEvent) => {
     e.stopPropagation();
     const currentParams = Object.fromEntries(searchParams.entries());
     setSearchParams({ ...currentParams, task: task.id });
   };
 
-  // Get Priority Badge styles
   const getPriorityBadge = (p: Task["priority"]) => {
     switch (p) {
       case "URGENT":
-        return "bg-red-500/10 text-red-400 border-red-500/20";
+        return "bg-rose-50 text-rose-700 border-rose-200 font-bold";
       case "HIGH":
-        return "bg-orange-500/10 text-orange-400 border-orange-500/20";
+        return "bg-amber-50 text-amber-700 border-amber-200 font-semibold";
       case "MEDIUM":
-        return "bg-blue-500/10 text-blue-400 border-blue-500/20";
+        return "bg-blue-50 text-blue-700 border-blue-200 font-medium";
       case "LOW":
       default:
-        return "bg-slate-800/40 text-slate-400 border-slate-800";
+        return "bg-slate-100 text-slate-600 border-slate-200";
     }
   };
 
@@ -418,74 +401,65 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, members, sprints, isOverlay =
   return (
     <div
       onClick={handleOpenDetails}
-      className={`rounded-xl border bg-slate-900/60 p-4 space-y-3 transition duration-200 hover:border-slate-800 hover:bg-slate-900/90 shadow-sm ${
-        isOverdue ? "border-red-950/80 bg-red-950/5 hover:border-red-900/80" : "border-slate-900/80"
+      className={`rounded-xl border bg-white p-4 space-y-3 transition duration-200 hover:border-indigo-300 hover:shadow-md shadow-xs ${
+        isOverdue ? "border-rose-300 bg-rose-50/30 hover:border-rose-400" : "border-slate-200/90"
       }`}
     >
       <div className="flex items-start justify-between gap-3">
-        {/* Title */}
-        <h5 className="font-semibold text-slate-200 text-xs leading-relaxed line-clamp-2">
+        <h5 className="font-semibold text-slate-800 text-xs leading-relaxed line-clamp-2">
           {task.title}
         </h5>
         
-        {/* Overdue Label */}
         {isOverdue && (
-          <span className="flex items-center gap-1 shrink-0 rounded px-1.5 py-0.5 text-[9px] font-bold bg-red-500 text-slate-950 uppercase tracking-wider animate-pulse">
+          <span className="flex items-center gap-1 shrink-0 rounded px-1.5 py-0.5 text-[9px] font-bold bg-rose-500 text-white uppercase tracking-wider animate-pulse">
             <AlertCircle className="h-3 w-3" />
             <span>Trễ</span>
           </span>
         )}
       </div>
 
-      {/* Description */}
       {task.description && (
         <p className="text-slate-500 text-[11px] line-clamp-2 leading-relaxed">
           {task.description}
         </p>
       )}
 
-      {/* Metadata Badges */}
       <div className="flex flex-wrap gap-1.5 items-center">
-        {/* Priority */}
-        <span className={`rounded-md border px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider ${getPriorityBadge(task.priority)}`}>
+        <span className={`rounded-md border px-1.5 py-0.5 text-[9px] uppercase tracking-wider ${getPriorityBadge(task.priority)}`}>
           {getPriorityLabel(task.priority)}
         </span>
 
-        {/* Sprint tag */}
         {sprint && (
-          <span className="rounded-md border border-slate-800 bg-slate-950/40 px-1.5 py-0.5 text-[9px] font-semibold text-slate-400">
+          <span className="rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[9px] font-semibold text-slate-500">
             {sprint.name.split(" ")[0] || "Sprint"}
           </span>
         )}
       </div>
 
-      {/* Footer Info: Assignee + Date */}
-      <div className="flex items-center justify-between border-t border-slate-950 pt-2 text-[10px]">
-        {/* Assignee info */}
-        <div className="flex items-center gap-2 text-slate-400">
+      <div className="flex items-center justify-between border-t border-slate-100 pt-2 text-[10px]">
+        <div className="flex items-center gap-2 text-slate-500">
           {assignee ? (
             <>
               {assignee.email.includes("An") || assignee.email.includes("chi") || assignee.email.includes("binh") || assignee.user_id.startsWith("u-") ? (
-                <div className="h-4.5 w-4.5 overflow-hidden rounded-full border border-slate-800 bg-slate-900">
+                <div className="h-4.5 w-4.5 overflow-hidden rounded-full border border-slate-200 bg-slate-100">
                   <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(assignee.full_name)}`} alt="avatar" className="h-full w-full" />
                 </div>
               ) : (
-                <div className="flex h-4.5 w-4.5 items-center justify-center rounded-full bg-slate-800 text-[8px] font-bold">
+                <div className="flex h-4.5 w-4.5 items-center justify-center rounded-full bg-slate-200 text-slate-700 text-[8px] font-bold">
                   {assignee.full_name.charAt(0)}
                 </div>
               )}
               <span className="truncate max-w-[90px]">{assignee.full_name}</span>
             </>
           ) : (
-            <span className="text-slate-600 flex items-center gap-1 font-semibold italic">
+            <span className="text-slate-400 flex items-center gap-1 font-semibold italic">
               <User className="h-3 w-3" />
               <span>Chưa giao</span>
             </span>
           )}
         </div>
 
-        {/* Deadline */}
-        <div className={`flex items-center gap-1 font-medium font-mono ${isOverdue ? "text-red-400" : "text-slate-500"}`}>
+        <div className={`flex items-center gap-1 font-medium font-mono ${isOverdue ? "text-rose-600 font-bold" : "text-slate-400"}`}>
           <Clock className="h-3.5 w-3.5" />
           <span>
             {new Date(task.deadline).toLocaleDateString([], { month: 'short', day: 'numeric' })}

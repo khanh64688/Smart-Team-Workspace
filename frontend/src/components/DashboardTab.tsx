@@ -30,18 +30,18 @@ interface DashboardTabProps {
 }
 
 const COLORS = {
-  TODO: "#64748b",      // slate-500
-  IN_PROGRESS: "#3b82f6", // blue-500
-  REVIEW: "#f59e0b",      // amber-500
-  DONE: "#10b981",        // emerald-500
+  TODO: "#64748b",
+  IN_PROGRESS: "#6366f1",
+  REVIEW: "#f59e0b",
+  DONE: "#10b981",
   
-  LOW: "#64748b",
-  MEDIUM: "#3b82f6",
+  LOW: "#94a3b8",
+  MEDIUM: "#6366f1",
   HIGH: "#f59e0b",
-  URGENT: "#ef4444",      // red-500
+  URGENT: "#f43f5e",
 };
 
-const PIE_COLORS = ["#64748b", "#3b82f6", "#f59e0b", "#10b981"];
+const PIE_COLORS = ["#94a3b8", "#6366f1", "#f59e0b", "#10b981"];
 
 export const DashboardTab: React.FC<DashboardTabProps> = ({ projectId }) => {
   const [stats, setStats] = useState<DashboardStats | null>(null);
@@ -66,17 +66,17 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({ projectId }) => {
   if (loading) {
     return (
       <div className="flex h-64 items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-cyan-500 border-t-transparent" />
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-600 border-t-transparent" />
       </div>
     );
   }
 
   if (!stats || stats.total_tasks === 0) {
     return (
-      <div className="py-20 text-center border border-dashed border-slate-900 rounded-2xl bg-slate-950/20 backdrop-blur-xl">
-        <TrendingUp className="mx-auto h-12 w-12 text-slate-700 mb-4" />
-        <h4 className="text-lg font-bold text-slate-400 mb-1">Dự án chưa có dữ liệu thống kê</h4>
-        <p className="text-sm text-slate-600 max-w-sm mx-auto">
+      <div className="py-20 text-center border border-dashed border-slate-200 rounded-2xl bg-white/60">
+        <TrendingUp className="mx-auto h-12 w-12 text-slate-300 mb-4" />
+        <h4 className="text-lg font-bold text-slate-700 mb-1">Dự án chưa có dữ liệu thống kê</h4>
+        <p className="text-sm text-slate-500 max-w-sm mx-auto">
           Hãy thêm các thẻ công việc (Task) trong tab Sprint để biểu đồ có thể phân tích tiến độ dự án của bạn.
         </p>
       </div>
@@ -85,64 +85,53 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({ projectId }) => {
 
   return (
     <div className="space-y-6">
-      
-      {/* 1. Metric Cards Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        
-        {/* Total Tasks Card */}
-        <div className="rounded-xl border border-slate-900 bg-slate-900/40 p-5 shadow-sm flex items-center gap-4 hover:border-slate-800 transition duration-200">
-          <div className="h-10 w-10 shrink-0 flex items-center justify-center rounded-lg bg-slate-800 text-slate-400">
+        <div className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-xs flex items-center gap-4 hover:border-indigo-200 transition duration-200">
+          <div className="h-11 w-11 shrink-0 flex items-center justify-center rounded-xl bg-slate-100 text-slate-600">
             <ListTodo className="h-5 w-5" />
           </div>
           <div>
-            <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Tổng số task</div>
-            <div className="text-2xl font-bold text-slate-100 font-mono mt-0.5">{stats.total_tasks}</div>
+            <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Tổng số task</div>
+            <div className="text-2xl font-bold text-slate-900 font-mono mt-0.5">{stats.total_tasks}</div>
           </div>
         </div>
 
-        {/* In Progress Card */}
-        <div className="rounded-xl border border-slate-900 bg-slate-900/40 p-5 shadow-sm flex items-center gap-4 hover:border-slate-800 transition duration-200">
-          <div className="h-10 w-10 shrink-0 flex items-center justify-center rounded-lg bg-blue-950/40 text-blue-400 border border-blue-900/30">
+        <div className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-xs flex items-center gap-4 hover:border-indigo-200 transition duration-200">
+          <div className="h-11 w-11 shrink-0 flex items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-100">
             <Activity className="h-5 w-5" />
           </div>
           <div>
-            <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Đang thực hiện</div>
-            <div className="text-2xl font-bold text-slate-100 font-mono mt-0.5">{stats.in_progress}</div>
+            <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Đang thực hiện</div>
+            <div className="text-2xl font-bold text-slate-900 font-mono mt-0.5">{stats.in_progress}</div>
           </div>
         </div>
 
-        {/* Completed Card */}
-        <div className="rounded-xl border border-slate-900 bg-slate-900/40 p-5 shadow-sm flex items-center gap-4 hover:border-slate-800 transition duration-200">
-          <div className="h-10 w-10 shrink-0 flex items-center justify-center rounded-lg bg-emerald-950/40 text-emerald-400 border border-emerald-900/20">
+        <div className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-xs flex items-center gap-4 hover:border-indigo-200 transition duration-200">
+          <div className="h-11 w-11 shrink-0 flex items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100">
             <CheckCircle className="h-5 w-5" />
           </div>
           <div>
-            <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Đã hoàn thành</div>
-            <div className="text-2xl font-bold text-slate-100 font-mono mt-0.5">{stats.completed}</div>
+            <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Đã hoàn thành</div>
+            <div className="text-2xl font-bold text-slate-900 font-mono mt-0.5">{stats.completed}</div>
           </div>
         </div>
 
-        {/* Overdue Card */}
-        <div className="rounded-xl border border-slate-900 bg-slate-900/40 p-5 shadow-sm flex items-center gap-4 hover:border-slate-800 transition duration-200">
-          <div className="h-10 w-10 shrink-0 flex items-center justify-center rounded-lg bg-red-950/40 text-red-400 border border-red-900/20">
+        <div className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-xs flex items-center gap-4 hover:border-indigo-200 transition duration-200">
+          <div className="h-11 w-11 shrink-0 flex items-center justify-center rounded-xl bg-rose-50 text-rose-600 border border-rose-100">
             <AlertCircle className="h-5 w-5" />
           </div>
           <div>
-            <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Task trễ hạn</div>
-            <div className="text-2xl font-bold text-red-400 font-mono mt-0.5">{stats.overdue}</div>
+            <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Task trễ hạn</div>
+            <div className="text-2xl font-bold text-rose-600 font-mono mt-0.5">{stats.overdue}</div>
           </div>
         </div>
-
       </div>
 
-      {/* 2. Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        
-        {/* Status Distribution Pie Chart */}
-        <div className="rounded-2xl border border-slate-900 bg-slate-900/20 p-5 space-y-4 shadow-sm backdrop-blur-xl">
+        <div className="rounded-2xl border border-slate-200/90 bg-white p-5 space-y-4 shadow-xs">
           <div className="flex items-center gap-2 px-1">
-            <PieChart className="h-4.5 w-4.5 text-cyan-400" />
-            <h4 className="font-bold text-sm text-slate-200">Trạng thái công việc</h4>
+            <PieChart className="h-4.5 w-4.5 text-indigo-600" />
+            <h4 className="font-bold text-sm text-slate-800">Trạng thái công việc</h4>
           </div>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
@@ -162,29 +151,28 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({ projectId }) => {
                   ))}
                 </Pie>
                 <Tooltip 
-                  contentStyle={{ backgroundColor: "#0f172a", borderColor: "#1e293b", borderRadius: "8px", fontSize: "12px", color: "#f8fafc" }}
+                  contentStyle={{ backgroundColor: "#ffffff", borderColor: "#e2e8f0", borderRadius: "12px", fontSize: "12px", color: "#0f172a", boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)" }}
                 />
               </RechartsPieChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        {/* Priority Breakdown Bar Chart */}
-        <div className="rounded-2xl border border-slate-900 bg-slate-900/20 p-5 space-y-4 shadow-sm backdrop-blur-xl">
+        <div className="rounded-2xl border border-slate-200/90 bg-white p-5 space-y-4 shadow-xs">
           <div className="flex items-center gap-2 px-1">
-            <BarChart className="h-4.5 w-4.5 text-cyan-400" />
-            <h4 className="font-bold text-sm text-slate-200">Độ ưu tiên công việc</h4>
+            <BarChart className="h-4.5 w-4.5 text-indigo-600" />
+            <h4 className="font-bold text-sm text-slate-800">Độ ưu tiên công việc</h4>
           </div>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <RechartsBarChart data={stats.priority_distribution}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                <XAxis dataKey="name" stroke="#64748b" style={{ fontSize: "11px" }} />
-                <YAxis stroke="#64748b" style={{ fontSize: "11px" }} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                <XAxis dataKey="name" stroke="#94a3b8" style={{ fontSize: "11px" }} />
+                <YAxis stroke="#94a3b8" style={{ fontSize: "11px" }} />
                 <Tooltip
-                  contentStyle={{ backgroundColor: "#0f172a", borderColor: "#1e293b", borderRadius: "8px", fontSize: "12px", color: "#f8fafc" }}
+                  contentStyle={{ backgroundColor: "#ffffff", borderColor: "#e2e8f0", borderRadius: "12px", fontSize: "12px", color: "#0f172a", boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)" }}
                 />
-                <Bar dataKey="value" fill="#3b82f6" radius={[4, 4, 0, 0]}>
+                <Bar dataKey="value" fill="#6366f1" radius={[6, 6, 0, 0]}>
                   {stats.priority_distribution.map((entry, index) => {
                     const color = entry.name === "Khẩn cấp" ? COLORS.URGENT :
                                   entry.name === "Cao" ? COLORS.HIGH :
@@ -197,33 +185,31 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({ projectId }) => {
           </div>
         </div>
 
-        {/* Workload breakdown stacked chart */}
-        <div className="lg:col-span-2 rounded-2xl border border-slate-900 bg-slate-900/20 p-5 space-y-4 shadow-sm backdrop-blur-xl">
+        <div className="lg:col-span-2 rounded-2xl border border-slate-200/90 bg-white p-5 space-y-4 shadow-xs">
           <div className="flex items-center gap-2 px-1">
-            <Users className="h-4.5 w-4.5 text-cyan-400" />
-            <h4 className="font-bold text-sm text-slate-200">Khối lượng công việc của thành viên</h4>
+            <Users className="h-4.5 w-4.5 text-indigo-600" />
+            <h4 className="font-bold text-sm text-slate-800">Khối lượng công việc của thành viên</h4>
           </div>
           <div className="h-72">
             <ResponsiveContainer width="100%" height="100%">
               <RechartsBarChart data={stats.assignee_workload}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                <XAxis dataKey="name" stroke="#64748b" style={{ fontSize: "11px" }} />
-                <YAxis stroke="#64748b" style={{ fontSize: "11px" }} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                <XAxis dataKey="name" stroke="#94a3b8" style={{ fontSize: "11px" }} />
+                <YAxis stroke="#94a3b8" style={{ fontSize: "11px" }} />
                 <Tooltip
-                  contentStyle={{ backgroundColor: "#0f172a", borderColor: "#1e293b", borderRadius: "8px", fontSize: "12px", color: "#f8fafc" }}
+                  contentStyle={{ backgroundColor: "#ffffff", borderColor: "#e2e8f0", borderRadius: "12px", fontSize: "12px", color: "#0f172a", boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)" }}
                 />
-                <Legend wrapperStyle={{ fontSize: "11px", pt: 10 }} />
+                <Legend wrapperStyle={{ fontSize: "11px", paddingTop: "10px" }} />
                 <Bar dataKey="todo" name="Cần làm" stackId="a" fill={COLORS.TODO} />
                 <Bar dataKey="in_progress" name="Đang làm" stackId="a" fill={COLORS.IN_PROGRESS} />
                 <Bar dataKey="review" name="Đánh giá" stackId="a" fill={COLORS.REVIEW} />
-                <Bar dataKey="done" name="Hoàn thành" stackId="a" fill={COLORS.DONE} radius={[4, 4, 0, 0]} />
+                <Bar dataKey="done" name="Hoàn thành" stackId="a" fill={COLORS.DONE} radius={[6, 6, 0, 0]} />
               </RechartsBarChart>
             </ResponsiveContainer>
           </div>
         </div>
-
       </div>
-
     </div>
   );
 };
+

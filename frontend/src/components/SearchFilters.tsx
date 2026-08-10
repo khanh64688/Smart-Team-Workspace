@@ -74,11 +74,10 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({ members, sprints }
     isOverdue;
 
   return (
-    <div className="rounded-xl border border-slate-900 bg-slate-950/40 p-4 space-y-4 shadow-md backdrop-blur">
+    <div className="rounded-2xl border border-slate-200/90 bg-white/90 p-4 space-y-4 shadow-xs backdrop-blur">
       <div className="flex flex-col md:flex-row gap-3">
-        {/* Search Input */}
         <div className="relative flex-1">
-          <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500">
+          <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
             <Search className="h-4 w-4" />
           </span>
           <input
@@ -86,17 +85,15 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({ members, sprints }
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Tìm kiếm công việc theo tiêu đề hoặc mô tả..."
-            className="w-full rounded-lg border border-slate-900 bg-slate-900/60 py-2 pl-9 pr-4 text-xs text-slate-200 placeholder-slate-500 transition focus:border-cyan-500/80 focus:outline-none"
+            className="w-full rounded-xl border border-slate-200 bg-slate-50/80 py-2.5 pl-10 pr-4 text-xs text-slate-800 placeholder-slate-400 transition focus:bg-white focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
           />
         </div>
 
-        {/* Filters Dropdown Actions */}
         <div className="flex flex-wrap gap-2 items-center">
-          {/* Sprint Filter */}
           <select
             value={currentSprint}
             onChange={(e) => handleFilterChange("sprint_id", e.target.value)}
-            className="rounded-lg border border-slate-900 bg-slate-900/60 px-3 py-2 text-xs font-semibold text-slate-400 focus:border-cyan-500/80 focus:outline-none"
+            className="rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2 text-xs font-semibold text-slate-600 focus:bg-white focus:border-indigo-500 focus:outline-none"
           >
             <option value="ALL">Tất cả Sprint</option>
             <option value="BACKLOG">Backlog (Chưa chia)</option>
@@ -107,11 +104,10 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({ members, sprints }
             ))}
           </select>
 
-          {/* Assignee Filter */}
           <select
             value={currentAssignee}
             onChange={(e) => handleFilterChange("assignee_id", e.target.value)}
-            className="rounded-lg border border-slate-900 bg-slate-900/60 px-3 py-2 text-xs font-semibold text-slate-400 focus:border-cyan-500/80 focus:outline-none"
+            className="rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2 text-xs font-semibold text-slate-600 focus:bg-white focus:border-indigo-500 focus:outline-none"
           >
             <option value="ALL">Tất cả người phụ trách</option>
             <option value="UNASSIGNED">Chưa phân công</option>
@@ -122,11 +118,10 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({ members, sprints }
             ))}
           </select>
 
-          {/* Priority Filter */}
           <select
             value={currentPriority}
             onChange={(e) => handleFilterChange("priority", e.target.value)}
-            className="rounded-lg border border-slate-900 bg-slate-900/60 px-3 py-2 text-xs font-semibold text-slate-400 focus:border-cyan-500/80 focus:outline-none"
+            className="rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2 text-xs font-semibold text-slate-600 focus:bg-white focus:border-indigo-500 focus:outline-none"
           >
             <option value="ALL">Mọi độ ưu tiên</option>
             <option value="LOW">Thấp</option>
@@ -135,11 +130,10 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({ members, sprints }
             <option value="URGENT">Khẩn cấp</option>
           </select>
 
-          {/* Status Filter */}
           <select
             value={currentStatus}
             onChange={(e) => handleFilterChange("status", e.target.value)}
-            className="rounded-lg border border-slate-900 bg-slate-900/60 px-3 py-2 text-xs font-semibold text-slate-400 focus:border-cyan-500/80 focus:outline-none"
+            className="rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2 text-xs font-semibold text-slate-600 focus:bg-white focus:border-indigo-500 focus:outline-none"
           >
             <option value="ALL">Mọi trạng thái</option>
             <option value="TODO">Cần làm</option>
@@ -148,22 +142,20 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({ members, sprints }
             <option value="DONE">Hoàn thành</option>
           </select>
 
-          {/* Overdue Checkbox */}
-          <label className="flex items-center gap-2 cursor-pointer select-none rounded-lg border border-slate-900 bg-slate-900/40 px-3 py-2 text-xs font-semibold text-slate-400 hover:bg-slate-900/80 transition">
+          <label className="flex items-center gap-2 cursor-pointer select-none rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 transition">
             <input
               type="checkbox"
               checked={isOverdue}
               onChange={handleCheckboxChange}
-              className="accent-cyan-400 cursor-pointer h-3.5 w-3.5"
+              className="accent-rose-500 cursor-pointer h-3.5 w-3.5"
             />
-            <span className="text-red-400 font-bold">Trễ hạn</span>
+            <span className="text-rose-600 font-bold">Trễ hạn</span>
           </label>
 
-          {/* Clear Filters Button */}
           {hasActiveFilters && (
             <button
               onClick={handleClearFilters}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-red-950/20 hover:bg-red-950/40 border border-red-900/50 text-red-400 text-xs font-bold transition"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-600 text-xs font-bold transition"
             >
               <SlidersHorizontal className="h-3.5 w-3.5" />
               <span>Xóa bộ lọc</span>
@@ -174,3 +166,4 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({ members, sprints }
     </div>
   );
 };
+

@@ -7,10 +7,10 @@
 
 body {
   font-family: var(--font-sans);
-  background-color: #020617; /* slate-950 */
+  background-color: #f8fafc;
+  color: #0f172a;
 }
 
-/* Custom Scrollbar for premium feel */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -21,10 +21,11 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #1e293b;
+  background: #cbd5e1;
   border-radius: 10px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #334155;
+  background: #94a3b8;
 }
+

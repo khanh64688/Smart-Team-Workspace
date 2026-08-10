@@ -6,14 +6,13 @@ import { Register } from "./pages/Register";
 import { Projects } from "./pages/Projects";
 import { ProjectDetail } from "./pages/ProjectDetail";
 
-// Route Guard for authenticated users
 const PrivateRoute: React.FC<{ children: React.ReactElement }> = ({ children }) => {
   const { user, loading } = useAuth();
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-950">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-cyan-500 border-t-transparent" />
+      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-600 border-t-transparent" />
       </div>
     );
   }
@@ -21,14 +20,13 @@ const PrivateRoute: React.FC<{ children: React.ReactElement }> = ({ children }) 
   return user ? children : <Navigate to="/login" replace />;
 };
 
-// Route Guard for guest-only users (login/register)
 const GuestRoute: React.FC<{ children: React.ReactElement }> = ({ children }) => {
   const { user, loading } = useAuth();
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-950">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-cyan-500 border-t-transparent" />
+      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-600 border-t-transparent" />
       </div>
     );
   }
@@ -41,7 +39,6 @@ export default function App() {
     <AuthProvider>
       <Router>
         <Routes>
-          {/* Guest routes */}
           <Route
             path="/login"
             element={
@@ -58,8 +55,6 @@ export default function App() {
               </GuestRoute>
             }
           />
-
-          {/* Protected routes */}
           <Route
             path="/projects"
             element={
@@ -76,11 +71,10 @@ export default function App() {
               </PrivateRoute>
             }
           />
-
-          {/* Catch all */}
           <Route path="*" element={<Navigate to="/projects" replace />} />
         </Routes>
       </Router>
     </AuthProvider>
   );
 }
+
