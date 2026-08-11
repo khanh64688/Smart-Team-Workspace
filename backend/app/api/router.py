@@ -3,6 +3,7 @@ from fastapi import APIRouter
 from app.api.routes import auth, users
 from app.api.v1 import projects
 from app.api.v1 import sprint
+from app.api.v1 import task
 
 
 api_router = APIRouter()
@@ -16,6 +17,7 @@ api_router.include_router(
 
 api_router.include_router(projects.router)
 api_router.include_router(sprint.router)
+api_router.include_router(task.router)
 
 api_router.include_router(
     users.router,

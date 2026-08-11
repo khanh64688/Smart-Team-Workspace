@@ -16,11 +16,11 @@ class Task(Base):
     
 
 
-    project_id: Mapped[str] = mapped_column(
+    project_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("projects.id", ondelete="CASCADE")
     )
 
-    sprint_id: Mapped[str | None] = mapped_column(
+    sprint_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("sprints.id", ondelete="SET NULL"),
         nullable=True,
     )
@@ -32,7 +32,7 @@ class Task(Base):
         nullable=True,
     )
 
-    assignee_id: Mapped[str | None] = mapped_column(
+    assignee_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
     )
@@ -68,6 +68,5 @@ class Task(Base):
     assignee: Mapped["User | None"] = relationship(back_populates="tasks")
 
     comments: Mapped[list["Comment"]] = relationship(
-        back_populates="task",
-        cascade="all, delete-orphan",
+        back_populates="task"
     )
