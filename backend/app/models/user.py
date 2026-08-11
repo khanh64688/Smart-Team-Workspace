@@ -14,6 +14,8 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database import Base
 
 if TYPE_CHECKING:
+    from app.models.project import Project
+    from app.models.project_member import ProjectMember
     from app.models.refresh_token import RefreshToken
 
 
@@ -87,4 +89,14 @@ class User(Base):
         back_populates="user",
         cascade="all, delete-orphan",
         passive_deletes=True,
+    )
+
+    owned_projects: Mapped[list["Project"]] = relationship(
+        back_populates="owner",
+        foreign_keys="Project.owner_id",
+    )
+
+    project_memberships: Mapped[list["ProjectMember"]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
     )

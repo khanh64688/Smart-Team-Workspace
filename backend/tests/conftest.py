@@ -11,6 +11,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session
+from sqlalchemy.pool import StaticPool
 
 
 # Đường dẫn tới thư mục backend/
@@ -31,9 +32,11 @@ if not TEST_DATABASE_URL:
 
 
 # Bảo vệ: pytest tuyệt đối không được chạy trên database phát triển.
-database_name = make_url(TEST_DATABASE_URL).database or ""
+test_database_url = make_url(TEST_DATABASE_URL)
+database_name = test_database_url.database or ""
+is_sqlite = test_database_url.drivername.startswith("sqlite")
 
-if not database_name.endswith("_test"):
+if not is_sqlite and not database_name.endswith("_test"):
     raise RuntimeError(
         "Pytest chỉ được phép dùng database có tên kết thúc bằng '_test'. "
         f"Database hiện tại: {database_name!r}"
@@ -54,10 +57,17 @@ from app.models import User, UserRole  # noqa: E402
 from app import models as app_models  # noqa: E402, F401
 
 
-test_engine = create_engine(
-    TEST_DATABASE_URL,
-    pool_pre_ping=True,
-)
+if is_sqlite:
+    test_engine = create_engine(
+        TEST_DATABASE_URL,
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+else:
+    test_engine = create_engine(
+        TEST_DATABASE_URL,
+        pool_pre_ping=True,
+    )
 
 
 # Đổi thành 200 nếu lệnh kiểm tra OpenAPI của bạn hiện 200.
@@ -75,27 +85,33 @@ def prepare_test_database() -> Generator[None, None, None]:
     Chuẩn bị schema test một lần cho toàn bộ phiên pytest.
     """
 
-    # DROP SCHEMA xóa cả table, index và PostgreSQL enum user_role.
-    with test_engine.begin() as connection:
-        connection.execute(
-            text("DROP SCHEMA IF EXISTS public CASCADE")
-        )
-        connection.execute(
-            text("CREATE SCHEMA public")
-        )
+    if is_sqlite:
+        Base.metadata.drop_all(bind=test_engine)
+    else:
+        # DROP SCHEMA xóa cả table, index và PostgreSQL enum user_role.
+        with test_engine.begin() as connection:
+            connection.execute(
+                text("DROP SCHEMA IF EXISTS public CASCADE")
+            )
+            connection.execute(
+                text("CREATE SCHEMA public")
+            )
 
     Base.metadata.create_all(bind=test_engine)
 
     yield
 
     # Dọn sạch database test khi chạy xong.
-    with test_engine.begin() as connection:
-        connection.execute(
-            text("DROP SCHEMA IF EXISTS public CASCADE")
-        )
-        connection.execute(
-            text("CREATE SCHEMA public")
-        )
+    if is_sqlite:
+        Base.metadata.drop_all(bind=test_engine)
+    else:
+        with test_engine.begin() as connection:
+            connection.execute(
+                text("DROP SCHEMA IF EXISTS public CASCADE")
+            )
+            connection.execute(
+                text("CREATE SCHEMA public")
+            )
 
     test_engine.dispose()
 
