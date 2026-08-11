@@ -1,12 +1,11 @@
 import uuid
 
-from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.models.project_member import ProjectRole
+from app.core.errors import api_error
 from app.models.sprint import Sprint
-from app.repositories.project import ProjectRepository
 from app.repositories.sprint import SprintRepository
+from app.services.project import ProjectService
 from app.schemas.sprint import (
     SprintCreate,
     SprintUpdate,
@@ -14,120 +13,37 @@ from app.schemas.sprint import (
 
 
 class SprintService:
-
     def __init__(self, db: Session):
         self.db = db
-
         self.sprint_repository = SprintRepository(db)
-        self.project_repository = ProjectRepository(db)
+        self.project_service = ProjectService(db)
 
 
-    def _get_project(
+    def _get_sprint(
         self,
-        project_id: uuid.UUID,
-    ):
-        project = self.project_repository.get(
-            project_id
+        sprint_id: uuid.UUID,
+    ) -> Sprint:
+
+        sprint = self.sprint_repository.get(
+            sprint_id
         )
 
-        if project is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Project not found",
+        if sprint is None:
+            raise api_error(
+                404,
+                "SPRINT_NOT_FOUND",
+                "Không tìm thấy sprint.",
             )
 
-        return project
-
-
-    def _is_admin(
-        self,
-        current_user,
-    ) -> bool:
-
-        return current_user.role.value == "ADMIN"
-
-    def _get_membership(
-        self,
-        project_id: uuid.UUID,
-        current_user,
-    ):
-        membership = self.project_repository.membership(
-            project_id=project_id,
-            user_id=current_user.id,
-        )
-
-        return membership
-
-
-    def _check_can_view(
-        self,
-        project_id: uuid.UUID,
-        current_user,
-    ) -> None:
-
-        if self._is_admin(current_user):
-            return
-
-        membership = self._get_membership(
-            project_id,
-            current_user,
-        )
-
-        if membership is None:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=(
-                    "You must be a member of this "
-                    "project to view sprints"
-                ),
-            )
-
-
-
-    def _check_can_manage(
-        self,
-        project_id: uuid.UUID,
-        current_user,
-    ) -> None:
-
-        if self._is_admin(current_user):
-            return
-
-        membership = self._get_membership(
-            project_id,
-            current_user,
-        )
-
-        if membership is None:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=(
-                    "You are not a member of this project"
-                ),
-            )
-
-        if membership.project_role not in (
-            ProjectRole.OWNER,
-            ProjectRole.MANAGER,
-        ):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=(
-                    "Only project OWNER or MANAGER "
-                    "can manage sprints"
-                ),
-            )
-
+        return sprint
 
     def list_by_project(
         self,
         project_id: uuid.UUID,
         current_user,
     ) -> list[Sprint]:
-
-        self._get_project(project_id)
-
-        self._check_can_view(
+        
+        self.project_service.require_member(
             project_id,
             current_user,
         )
@@ -136,6 +52,22 @@ class SprintService:
             project_id
         )
 
+    def get(
+        self,
+        sprint_id: uuid.UUID,
+        current_user,
+    ) -> Sprint:
+
+        sprint = self._get_sprint(
+            sprint_id
+        )
+
+        self.project_service.require_member(
+            sprint.project_id,
+            current_user,
+        )
+
+        return sprint
 
     def create(
         self,
@@ -143,17 +75,22 @@ class SprintService:
         data: SprintCreate,
         current_user,
     ) -> Sprint:
-
-        self._get_project(project_id)
-
-        self._check_can_manage(
+        
+        self.project_service.require_manager(
             project_id,
             current_user,
         )
 
 
-        if data.status == "ACTIVE":
 
+        if data.end_date <= data.start_date:
+            raise api_error(
+                400,
+                "SPRINT_INVALID_DATE_RANGE",
+                "end_date phải sau start_date.",
+            )
+
+        if data.status == "ACTIVE":
             active_sprint = (
                 self.sprint_repository
                 .get_active_by_project(
@@ -162,11 +99,12 @@ class SprintService:
             )
 
             if active_sprint is not None:
-                raise HTTPException(
-                    status_code=status.HTTP_409_CONFLICT,
-                    detail=(
-                        "This project already has "
-                        "an ACTIVE sprint"
+                raise api_error(
+                    409,
+                    "SPRINT_ACTIVE_EXISTS",
+                    (
+                        "Project đã có một ACTIVE sprint. "
+                        "Không thể tạo thêm ACTIVE sprint."
                     ),
                 )
 
@@ -179,38 +117,19 @@ class SprintService:
             status=data.status,
         )
 
-        self.sprint_repository.create(
-            sprint
-        )
-
-        self.db.commit()
-        self.db.refresh(sprint)
-
-        return sprint
-
-
-    def get(
-        self,
-        sprint_id: uuid.UUID,
-        current_user,
-    ) -> Sprint:
-
-        sprint = self.sprint_repository.get(
-            sprint_id
-        )
-
-        if sprint is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Sprint not found",
+        try:
+            self.sprint_repository.create(
+                sprint
             )
 
-        self._check_can_view(
-            sprint.project_id,
-            current_user,
-        )
+            self.db.commit()
+            self.db.refresh(sprint)
 
-        return sprint
+            return sprint
+
+        except Exception:
+            self.db.rollback()
+            raise
 
     def update(
         self,
@@ -219,34 +138,26 @@ class SprintService:
         current_user,
     ) -> Sprint:
 
-        sprint = self.sprint_repository.get(
+        sprint = self._get_sprint(
             sprint_id
         )
 
-        if sprint is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Sprint not found",
-            )
-
-        self._check_can_manage(
+        # ADMIN / OWNER / MANAGER
+        self.project_service.require_manager(
             sprint.project_id,
             current_user,
         )
 
-        # Không sửa sprint đã đóng
         if sprint.status == "CLOSED":
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=(
-                    "Cannot update a CLOSED sprint"
-                ),
+            raise api_error(
+                400,
+                "SPRINT_CLOSED",
+                "Không thể sửa sprint đã CLOSED.",
             )
 
         update_data = data.model_dump(
             exclude_unset=True
         )
-
 
 
         new_start_date = update_data.get(
@@ -260,14 +171,58 @@ class SprintService:
         )
 
         if new_end_date <= new_start_date:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=(
-                    "end_date must be greater than "
-                    "start_date"
-                ),
+            raise api_error(
+                400,
+                "SPRINT_INVALID_DATE_RANGE",
+                "end_date phải sau start_date.",
             )
 
+        if "status" in update_data:
+            new_status = update_data["status"]
+
+            if new_status != sprint.status:
+
+                allowed_transitions = {
+                    "PLANNED": {"ACTIVE"},
+                    "ACTIVE": {"CLOSED"},
+                    "CLOSED": set(),
+                }
+
+                allowed = allowed_transitions.get(
+                    sprint.status,
+                    set(),
+                )
+
+                if new_status not in allowed:
+                    raise api_error(
+                        400,
+                        "SPRINT_INVALID_STATUS_TRANSITION",
+                        (
+                            f"Không thể chuyển sprint từ "
+                            f"{sprint.status} sang "
+                            f"{new_status}."
+                        ),
+                    )
+
+                if new_status == "ACTIVE":
+                    active_sprint = (
+                        self.sprint_repository
+                        .get_active_by_project(
+                            sprint.project_id
+                        )
+                    )
+
+                    if (
+                        active_sprint is not None
+                        and active_sprint.id != sprint.id
+                    ):
+                        raise api_error(
+                            409,
+                            "SPRINT_ACTIVE_EXISTS",
+                            (
+                                "Project đã có một ACTIVE sprint."
+                            ),
+                        )
 
         for field, value in update_data.items():
             setattr(
@@ -276,15 +231,19 @@ class SprintService:
                 value,
             )
 
-        self.sprint_repository.update(
-            sprint
-        )
+        try:
+            self.sprint_repository.update(
+                sprint
+            )
 
-        self.db.commit()
-        self.db.refresh(sprint)
+            self.db.commit()
+            self.db.refresh(sprint)
 
-        return sprint
+            return sprint
 
+        except Exception:
+            self.db.rollback()
+            raise
 
     def close(
         self,
@@ -292,47 +251,45 @@ class SprintService:
         current_user,
     ) -> Sprint:
 
-        sprint = self.sprint_repository.get(
+        sprint = self._get_sprint(
             sprint_id
         )
 
-        if sprint is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Sprint not found",
-            )
-
-        self._check_can_manage(
+        # ADMIN / OWNER / MANAGER
+        self.project_service.require_manager(
             sprint.project_id,
             current_user,
         )
 
         if sprint.status == "CLOSED":
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Sprint is already CLOSED",
+            raise api_error(
+                400,
+                "SPRINT_ALREADY_CLOSED",
+                "Sprint đã CLOSED.",
             )
 
         if sprint.status != "ACTIVE":
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=(
-                    "Only ACTIVE sprint "
-                    "can be closed"
-                ),
+            raise api_error(
+                400,
+                "SPRINT_NOT_ACTIVE",
+                "Chỉ ACTIVE sprint mới có thể được đóng.",
             )
 
         sprint.status = "CLOSED"
 
-        self.sprint_repository.update(
-            sprint
-        )
+        try:
+            self.sprint_repository.update(
+                sprint
+            )
 
-        self.db.commit()
-        self.db.refresh(sprint)
+            self.db.commit()
+            self.db.refresh(sprint)
 
-        return sprint
+            return sprint
 
+        except Exception:
+            self.db.rollback()
+            raise
 
     def delete(
         self,
@@ -340,44 +297,42 @@ class SprintService:
         current_user,
     ) -> None:
 
-        sprint = self.sprint_repository.get(
+        sprint = self._get_sprint(
             sprint_id
         )
 
-        if sprint is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Sprint not found",
-            )
-
-        self._check_can_manage(
+        # ADMIN / OWNER / MANAGER
+        self.project_service.require_manager(
             sprint.project_id,
             current_user,
         )
 
-
         if sprint.status == "ACTIVE":
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=(
-                    "Cannot delete an ACTIVE sprint"
-                ),
+            raise api_error(
+                400,
+                "SPRINT_ACTIVE_CANNOT_DELETE",
+                "Không thể xóa ACTIVE sprint.",
             )
-
 
         if self.sprint_repository.has_tasks(
             sprint_id
         ):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=(
-                    "Cannot delete sprint because "
-                    "it already has tasks"
+            raise api_error(
+                400,
+                "SPRINT_HAS_TASKS",
+                (
+                    "Không thể xóa sprint vì sprint "
+                    "đã có task."
                 ),
             )
 
-        self.sprint_repository.delete(
-            sprint
-        )
+        try:
+            self.sprint_repository.delete(
+                sprint
+            )
 
-        self.db.commit()
+            self.db.commit()
+
+        except Exception:
+            self.db.rollback()
+            raise
