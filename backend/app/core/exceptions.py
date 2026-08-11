@@ -45,3 +45,27 @@ class NotFoundError(ServiceError):
 
 class ConflictError(ServiceError):
     status_code = 409
+
+
+class TooManyRequestsError(ServiceError):
+    status_code = 429
+
+
+class ServiceUnavailableError(ServiceError):
+    """
+    Phụ thuộc bên ngoài không dùng được.
+
+    Ví dụ: chưa cấu hình AI_API_KEY, hoặc nhà cung cấp AI trả lỗi.
+    """
+
+    status_code = 503
+
+
+class GatewayTimeoutError(ServiceError):
+    """
+    Phụ thuộc bên ngoài phản hồi quá chậm.
+
+    Dùng cho lời gọi tới nhà cung cấp AI vượt quá ai_timeout_seconds.
+    """
+
+    status_code = 504

@@ -1,38 +1,39 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, CheckCheck, Clock, AlertTriangle, MessageSquare } from 'lucide-react';
+import { Bell, CheckCheck } from 'lucide-react';
 import type { Notification } from '../../types/api';
 import { api } from '../../lib/api';
+import { getNotificationStyle } from '../../lib/notificationStyles';
 
 interface NotificationDrawerProps {
-  onSelectTask?: (taskId: number) => void;
+  onSelectTask?: (taskId: string) => void;
 }
 
 export const NotificationDrawer: React.FC<NotificationDrawerProps> = ({ onSelectTask }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([
     {
-      id: 1,
+      id: 'demo-n1',
       title: 'Task Assigned',
       message: 'You have been assigned to "API CRUD sản phẩm"',
       is_read: false,
       created_at: new Date(Date.now() - 1000 * 60 * 15).toISOString(),
-      task_id: 6,
+      task_id: 'demo-t6',
     },
     {
-      id: 2,
+      id: 'demo-n2',
       title: 'New Comment',
       message: 'Trần Minh Quản commented on "Viết unit test cho module xác thực"',
       is_read: false,
       created_at: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
-      task_id: 5,
+      task_id: 'demo-t5',
     },
     {
-      id: 3,
+      id: 'demo-n3',
       title: 'Deadline Warning',
       message: 'Task "Chức năng tìm kiếm sản phẩm nâng cao" is overdue!',
       is_read: true,
       created_at: new Date(Date.now() - 1000 * 60 * 180).toISOString(),
-      task_id: 13,
+      task_id: 'demo-t13',
     },
   ]);
 
@@ -114,39 +115,52 @@ export const NotificationDrawer: React.FC<NotificationDrawerProps> = ({ onSelect
                   No notifications yet.
                 </div>
               ) : (
-                notifications.map((item) => (
-                  <div
-                    key={item.id}
-                    onClick={() => handleNotificationClick(item)}
-                    className={`p-3 rounded-xl cursor-pointer transition-all my-1 ${
-                      item.is_read
-                        ? 'hover:bg-gray-800/40 opacity-70'
-                        : 'bg-indigo-950/20 border border-indigo-500/20 hover:bg-indigo-950/40'
-                    }`}
-                  >
-                    <div className="flex items-start gap-2.5">
-                      {item.title.includes('Deadline') ? (
-                        <AlertTriangle className="w-4 h-4 text-amber-400 mt-0.5 shrink-0" />
-                      ) : item.title.includes('Comment') ? (
-                        <MessageSquare className="w-4 h-4 text-indigo-400 mt-0.5 shrink-0" />
-                      ) : (
-                        <Clock className="w-4 h-4 text-emerald-400 mt-0.5 shrink-0" />
+                notifications.map((item) => {
+                  const style = getNotificationStyle(item);
+                  const Icon = style.icon;
+
+                  return (
+                    <div
+                      key={item.id}
+                      onClick={() => handleNotificationClick(item)}
+                      className={`relative overflow-hidden p-3 pl-4 rounded-xl cursor-pointer transition-all my-1 ${
+                        item.is_read
+                          ? 'opacity-60 hover:opacity-90 hover:bg-gray-800/40'
+                          : `${style.unreadBg} border ${style.unreadBorder} ${style.unreadHover}`
+                      }`}
+                    >
+                      {!item.is_read && (
+                        <span
+                          className={`absolute left-0 top-0 bottom-0 w-[3px] ${style.bar}`}
+                          aria-hidden="true"
+                        />
                       )}
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between">
-                          <p className="text-xs font-semibold text-white">{item.title}</p>
-                          <span className="text-[10px] text-gray-500">
-                            {new Date(item.created_at).toLocaleTimeString([], {
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })}
-                          </span>
+                      <div className="flex items-start gap-2.5">
+                        <span
+                          className={`w-7 h-7 rounded-lg shrink-0 flex items-center justify-center ${
+                            item.is_read ? 'bg-gray-800/60' : style.iconBg
+                          }`}
+                        >
+                          <Icon
+                            className={`w-4 h-4 ${item.is_read ? 'text-gray-400' : style.accent}`}
+                          />
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-xs font-semibold text-white truncate">{item.title}</p>
+                            <span className="text-[10px] text-gray-500 shrink-0">
+                              {new Date(item.created_at).toLocaleTimeString([], {
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
+                            </span>
+                          </div>
+                          <p className="text-xs text-gray-300 mt-0.5 leading-snug">{item.message}</p>
                         </div>
-                        <p className="text-xs text-gray-300 mt-0.5 leading-snug">{item.message}</p>
                       </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           </div>

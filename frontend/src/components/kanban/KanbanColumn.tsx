@@ -27,12 +27,19 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({
   onTaskClick,
   onAddTask,
 }) => {
-  const { setNodeRef } = useDroppable({ id });
+  const { setNodeRef, isOver } = useDroppable({ id, data: { type: 'column', status: id } });
   const styles = columnHeaderStyles[id];
   const taskIds = tasks.map((t) => t.id.toString());
 
   return (
-    <div className="flex flex-col w-80 shrink-0 glass-panel rounded-3xl border border-gray-800/80 p-4 max-h-[calc(100vh-160px)]">
+    // Vùng thả là cả cột chứ không riêng danh sách thẻ: cột ít thẻ chỉ cao
+    // vài trăm pixel, thả vào khoảng trống bên dưới sẽ không nhận.
+    <div
+      ref={setNodeRef}
+      className={`flex flex-col w-80 shrink-0 glass-panel rounded-3xl border p-4 max-h-[calc(100vh-160px)] transition-colors ${
+        isOver ? 'border-indigo-500/60 bg-indigo-500/5' : 'border-gray-800/80'
+      }`}
+    >
       {/* Column Header */}
       <div className="flex items-center justify-between pb-3 mb-2 border-b border-gray-800/60">
         <div className="flex items-center gap-2">
@@ -51,8 +58,8 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({
       </div>
 
       {/* Droppable Task Container */}
-      <div ref={setNodeRef} className="flex-1 overflow-y-auto pr-1">
-        <SortableContext items={taskIds} strategy={verticalListSortingStrategy}>
+      <div className="flex-1 overflow-y-auto pr-1">
+        <SortableContext id={id} items={taskIds} strategy={verticalListSortingStrategy}>
           {tasks.map((task) => (
             <KanbanCard key={task.id} task={task} onClick={() => onTaskClick(task)} />
           ))}

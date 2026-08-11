@@ -8,7 +8,8 @@ import { ProjectsPage } from './pages/ProjectsPage';
 import { KanbanBoardPage } from './pages/KanbanBoardPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { AISprintSummaryModal } from './components/ai/AISprintSummaryModal';
-import type { Project } from './types/api';
+import { ChatWidget } from './components/chat/ChatWidget';
+import type { Paginated, Project, Task } from './types/api';
 import { api } from './lib/api';
 
 const AppContent: React.FC = () => {
@@ -17,29 +18,29 @@ const AppContent: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>('kanban');
   const [projects, setProjects] = useState<Project[]>([
     {
-      id: 1,
+      id: 'demo-alpha',
       name: 'Website Thương mại điện tử',
       description: 'Đồ án môn Phát triển ứng dụng Web — xây dựng sàn TMĐT thu nhỏ.',
       status: 'ACTIVE',
-      owner_id: 2,
+      owner_id: 'demo-pm',
       created_at: new Date(Date.now() - 1000 * 60 * 60 * 24 * 10).toISOString(),
       members: [
-        { user_id: 2, project_id: 1, user: { id: 2, email: 'pm@twl.dev', full_name: 'Trần Minh Quản', role: 'PM', is_active: true, created_at: '' } },
-        { user_id: 4, project_id: 1, user: { id: 4, email: 'an@twl.dev', full_name: 'Lê Thị An', role: 'MEMBER', is_active: true, created_at: '' } },
-        { user_id: 5, project_id: 1, user: { id: 5, email: 'binh@twl.dev', full_name: 'Phạm Quốc Bình', role: 'MEMBER', is_active: true, created_at: '' } },
-        { user_id: 6, project_id: 1, user: { id: 6, email: 'chi@twl.dev', full_name: 'Đỗ Ngọc Chi', role: 'MEMBER', is_active: true, created_at: '' } },
+        { user_id: 'demo-pm', project_id: 'demo-alpha', user: { id: 'demo-pm', email: 'pm@twl.dev', full_name: 'Trần Minh Quản', role: 'PM', is_active: true, created_at: '' } },
+        { user_id: 'demo-an', project_id: 'demo-alpha', user: { id: 'demo-an', email: 'an@twl.dev', full_name: 'Lê Thị An', role: 'MEMBER', is_active: true, created_at: '' } },
+        { user_id: 'demo-binh', project_id: 'demo-alpha', user: { id: 'demo-binh', email: 'binh@twl.dev', full_name: 'Phạm Quốc Bình', role: 'MEMBER', is_active: true, created_at: '' } },
+        { user_id: 'demo-chi', project_id: 'demo-alpha', user: { id: 'demo-chi', email: 'chi@twl.dev', full_name: 'Đỗ Ngọc Chi', role: 'MEMBER', is_active: true, created_at: '' } },
       ],
     },
     {
-      id: 2,
+      id: 'demo-beta',
       name: 'Ứng dụng Quản lý Chi tiêu',
       description: 'Bài tập lớn môn Lập trình di động — app ghi chép thu chi cá nhân.',
       status: 'ACTIVE',
-      owner_id: 3,
+      owner_id: 'demo-lap',
       created_at: new Date(Date.now() - 1000 * 60 * 60 * 24 * 5).toISOString(),
       members: [
-        { user_id: 3, project_id: 2, user: { id: 3, email: 'lap@twl.dev', full_name: 'Hoàng Văn Lập', role: 'PM', is_active: true, created_at: '' } },
-        { user_id: 6, project_id: 2, user: { id: 6, email: 'chi@twl.dev', full_name: 'Đỗ Ngọc Chi', role: 'MEMBER', is_active: true, created_at: '' } },
+        { user_id: 'demo-lap', project_id: 'demo-beta', user: { id: 'demo-lap', email: 'lap@twl.dev', full_name: 'Hoàng Văn Lập', role: 'PM', is_active: true, created_at: '' } },
+        { user_id: 'demo-chi', project_id: 'demo-beta', user: { id: 'demo-chi', email: 'chi@twl.dev', full_name: 'Đỗ Ngọc Chi', role: 'MEMBER', is_active: true, created_at: '' } },
       ],
     },
   ]);
@@ -47,6 +48,8 @@ const AppContent: React.FC = () => {
   const [selectedProject, setSelectedProject] = useState<Project | null>(projects[0]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isAISummaryOpen, setIsAISummaryOpen] = useState(false);
+  // Task của board hiện tại, dùng làm ngữ cảnh cho chip gợi ý của trợ lý AI.
+  const [boardTasks, setBoardTasks] = useState<Task[]>([]);
 
   useEffect(() => {
     if (user) {
@@ -56,10 +59,17 @@ const AppContent: React.FC = () => {
 
   const fetchProjects = async () => {
     try {
-      const res = await api.get<Project[]>('/projects');
-      if (res.data && Array.isArray(res.data) && res.data.length > 0) {
-        setProjects(res.data);
-        if (!selectedProject) setSelectedProject(res.data[0]);
+      // Backend trả về { data, meta } chứ không phải mảng trần. Trước đây
+      // chỗ này kiểm tra Array.isArray(res.data) nên luôn sai và âm thầm
+      // giữ nguyên dữ liệu mẫu, kể cả khi backend đã chạy.
+      const res = await api.get<Paginated<Project> | Project[]>('/projects');
+      const list = Array.isArray(res.data) ? res.data : res.data?.data;
+
+      if (Array.isArray(list) && list.length > 0) {
+        setProjects(list);
+        setSelectedProject((current) =>
+          list.find((item) => item.id === current?.id) ?? list[0]
+        );
       }
     } catch {
       // Retain sample projects
@@ -121,6 +131,7 @@ const AppContent: React.FC = () => {
               project={selectedProject}
               searchQuery={searchQuery}
               onOpenAISummary={() => setIsAISummaryOpen(true)}
+              onTasksChange={setBoardTasks}
             />
           )}
 
@@ -179,8 +190,10 @@ const AppContent: React.FC = () => {
       <AISprintSummaryModal
         isOpen={isAISummaryOpen}
         onClose={() => setIsAISummaryOpen(false)}
-        sprintId={1}
       />
+
+      {/* Trợ lý AI — nút nổi dùng được ở mọi trang */}
+      <ChatWidget project={selectedProject} tasks={boardTasks} />
     </div>
   );
 };

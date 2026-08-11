@@ -36,10 +36,10 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ project, onOpenAIS
     by_status: { TODO: 6, IN_PROGRESS: 8, REVIEW: 2, DONE: 10 },
     by_priority: { LOW: 4, MEDIUM: 10, HIGH: 8, URGENT: 4 },
     by_assignee: [
-      { user_id: 4, user_name: 'Lê Thị An', count: 8 },
-      { user_id: 5, user_name: 'Phạm Quốc Bình', count: 7 },
-      { user_id: 6, user_name: 'Đỗ Ngọc Chi', count: 6 },
-      { user_id: 7, user_name: 'Vũ Tiến Dũng', count: 5 },
+      { user_id: 'demo-an', user_name: 'Lê Thị An', count: 8 },
+      { user_id: 'demo-binh', user_name: 'Phạm Quốc Bình', count: 7 },
+      { user_id: 'demo-chi', user_name: 'Đỗ Ngọc Chi', count: 6 },
+      { user_id: 'demo-dung', user_name: 'Vũ Tiến Dũng', count: 5 },
     ],
   });
 

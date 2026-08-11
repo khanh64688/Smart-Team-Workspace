@@ -36,7 +36,7 @@ export const MemberManagementModal: React.FC<MemberManagementModalProps> = ({
     }
   };
 
-  const handleRemoveMember = async (userId: number) => {
+  const handleRemoveMember = async (userId: string) => {
     if (!confirm('Are you sure you want to remove this member from the project?')) return;
     setLoading(true);
     setError(null);

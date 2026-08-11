@@ -10,7 +10,7 @@ interface TaskDetailModalProps {
   task: Task | null;
   members: User[];
   onTaskUpdated: (updatedTask: Task) => void;
-  onTaskDeleted?: (taskId: number) => void;
+  onTaskDeleted?: (taskId: string) => void;
 }
 
 export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
@@ -25,19 +25,19 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   const [commentText, setCommentText] = useState('');
   const [comments, setComments] = useState<Comment[]>([
     {
-      id: 1,
+      id: 'demo-c1',
       content: 'Đã hoàn thành thiết kế DB và push mã nguồn lên branch develop.',
-      user_id: 4,
-      user: { id: 4, email: 'an@twl.dev', full_name: 'Lê Thị An', role: 'MEMBER', is_active: true, created_at: '' },
-      task_id: task?.id || 1,
+      user_id: 'demo-an',
+      user: { id: 'demo-an', email: 'an@twl.dev', full_name: 'Lê Thị An', role: 'MEMBER', is_active: true, created_at: '' },
+      task_id: task?.id ?? '',
       created_at: new Date(Date.now() - 1000 * 60 * 120).toISOString(),
     },
     {
-      id: 2,
+      id: 'demo-c2',
       content: 'Nhớ bổ sung index cho bảng product_category nhé!',
-      user_id: 2,
-      user: { id: 2, email: 'pm@twl.dev', full_name: 'Trần Minh Quản', role: 'PM', is_active: true, created_at: '' },
-      task_id: task?.id || 1,
+      user_id: 'demo-pm',
+      user: { id: 'demo-pm', email: 'pm@twl.dev', full_name: 'Trần Minh Quản', role: 'PM', is_active: true, created_at: '' },
+      task_id: task?.id ?? '',
       created_at: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
     },
   ]);
@@ -65,11 +65,11 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   };
 
   const handleAssigneeChange = async (newAssigneeId: string) => {
-    const assigneeObj = members.find((m) => m.id === Number(newAssigneeId));
-    const updated = { ...task, assignee_id: newAssigneeId ? Number(newAssigneeId) : undefined, assignee: assigneeObj };
+    const assigneeObj = members.find((m) => m.id === newAssigneeId);
+    const updated = { ...task, assignee_id: newAssigneeId || undefined, assignee: assigneeObj };
     onTaskUpdated(updated);
     try {
-      await api.patch(`/tasks/${task.id}`, { assignee_id: newAssigneeId ? Number(newAssigneeId) : null });
+      await api.patch(`/tasks/${task.id}`, { assignee_id: newAssigneeId || null });
     } catch {
       // Optimistic update retained
     }
@@ -80,7 +80,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
     if (!commentText.trim() || !user) return;
 
     const newComment: Comment = {
-      id: Date.now(),
+      id: `local-${Date.now()}`,
       content: commentText,
       user_id: user.id,
       user: user,

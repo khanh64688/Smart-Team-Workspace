@@ -6,7 +6,7 @@ import { api } from '../../lib/api';
 interface CreateTaskModalProps {
   isOpen: boolean;
   onClose: () => void;
-  projectId: number;
+  projectId: string;
   initialStatus: TaskStatus;
   members: User[];
   onTaskCreated: (task: Task) => void;
@@ -43,23 +43,23 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
         priority,
         status,
         project_id: projectId,
-        assignee_id: assigneeId ? Number(assigneeId) : undefined,
-        deadline: deadline || undefined,
+        assignee_id: assigneeId || undefined,
+        due_date: deadline || undefined,
       });
       onTaskCreated(res.data);
       onClose();
-    } catch (err: any) {
+    } catch {
       // Fallback mock task creation if backend API route for task is not yet mounted
       const mockNewTask: Task = {
-        id: Math.floor(Math.random() * 1000) + 100,
+        id: `local-${Date.now()}`,
         title,
         description,
         status,
         priority,
         project_id: projectId,
-        assignee_id: assigneeId ? Number(assigneeId) : undefined,
-        assignee: members.find((m) => m.id === Number(assigneeId)),
-        deadline: deadline || undefined,
+        assignee_id: assigneeId || undefined,
+        assignee: members.find((m) => m.id === assigneeId),
+        due_date: deadline || undefined,
         comments_count: 0,
         created_at: new Date().toISOString(),
       };

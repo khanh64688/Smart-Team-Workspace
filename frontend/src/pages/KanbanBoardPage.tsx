@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   DndContext,
   DragOverlay,
+  MeasuringStrategy,
   closestCorners,
   KeyboardSensor,
   PointerSensor,
@@ -9,39 +10,67 @@ import {
   useSensors,
   type DragStartEvent,
   type DragEndEvent,
+  type Over,
 } from '@dnd-kit/core';
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import type { Task, TaskStatus, Project, User } from '../types/api';
 import { KanbanColumn } from '../components/kanban/KanbanColumn';
-import { KanbanCard } from '../components/kanban/KanbanCard';
+import { KanbanCardView } from '../components/kanban/KanbanCard';
 import { TaskDetailModal } from '../components/kanban/TaskDetailModal';
 import { CreateTaskModal } from '../components/kanban/CreateTaskModal';
 import { Filter, Plus, Sparkles } from 'lucide-react';
 import { api } from '../lib/api';
 
+const COLUMN_STATUSES: TaskStatus[] = ['TODO', 'IN_PROGRESS', 'REVIEW', 'DONE'];
+
+const isColumnStatus = (value: unknown): value is TaskStatus =>
+  typeof value === 'string' && COLUMN_STATUSES.includes(value as TaskStatus);
+
+/**
+ * Cột đích của một lần thả.
+ *
+ * Với closestCorners, `over` thường là một THẺ khác chứ không phải cột —
+ * nên phải suy ra cột từ thẻ đó. containerId của SortableContext là nguồn
+ * đáng tin nhất vì nó phản ánh cột đang render, kể cả khi state tasks
+ * chưa kịp cập nhật.
+ */
+const resolveTargetStatus = (over: Over, tasks: Task[]): TaskStatus | null => {
+  const overId = over.id.toString();
+  if (isColumnStatus(overId)) return overId;
+
+  const data = over.data.current;
+  if (isColumnStatus(data?.sortable?.containerId)) return data!.sortable.containerId as TaskStatus;
+  if (isColumnStatus(data?.status)) return data!.status as TaskStatus;
+
+  return tasks.find((t) => t.id.toString() === overId)?.status ?? null;
+};
+
 interface KanbanBoardPageProps {
   project: Project | null;
   searchQuery: string;
   onOpenAISummary: () => void;
+  /** Báo task hiện tại lên App để trợ lý AI sinh gợi ý theo ngữ cảnh. */
+  onTasksChange?: (tasks: Task[]) => void;
 }
 
 export const KanbanBoardPage: React.FC<KanbanBoardPageProps> = ({
   project,
   searchQuery,
   onOpenAISummary,
+  onTasksChange,
 }) => {
   const [tasks, setTasks] = useState<Task[]>([
-    { id: 1, title: 'Thiết kế ERD cho toàn hệ thống', status: 'DONE', priority: 'HIGH', project_id: 1, comments_count: 3, created_at: new Date().toISOString() },
-    { id: 2, title: 'Dựng skeleton FastAPI + Docker Compose', status: 'DONE', priority: 'HIGH', project_id: 1, comments_count: 1, created_at: new Date().toISOString() },
-    { id: 3, title: 'API đăng ký / đăng nhập với JWT', status: 'DONE', priority: 'URGENT', project_id: 1, comments_count: 2, created_at: new Date().toISOString() },
-    { id: 4, title: 'Màn hình đăng nhập bằng React', status: 'DONE', priority: 'MEDIUM', project_id: 1, comments_count: 0, created_at: new Date().toISOString() },
-    { id: 5, title: 'Viết unit test cho module xác thực', status: 'REVIEW', priority: 'HIGH', project_id: 1, comments_count: 4, created_at: new Date().toISOString() },
-    { id: 6, title: 'API CRUD sản phẩm', status: 'IN_PROGRESS', priority: 'URGENT', project_id: 1, comments_count: 2, created_at: new Date().toISOString() },
-    { id: 7, title: 'Trang danh sách sản phẩm + phân trang', status: 'IN_PROGRESS', priority: 'HIGH', project_id: 1, comments_count: 1, created_at: new Date().toISOString() },
-    { id: 8, title: 'Chức năng giỏ hàng phía frontend', status: 'IN_PROGRESS', priority: 'MEDIUM', project_id: 1, comments_count: 0, created_at: new Date().toISOString() },
-    { id: 9, title: 'Tích hợp cổng thanh toán sandbox', status: 'TODO', priority: 'HIGH', project_id: 1, comments_count: 0, created_at: new Date().toISOString() },
-    { id: 10, title: 'Trang quản trị đơn hàng', status: 'TODO', priority: 'MEDIUM', project_id: 1, comments_count: 0, created_at: new Date().toISOString() },
-    { id: 13, title: 'Chức năng tìm kiếm sản phẩm nâng cao', status: 'IN_PROGRESS', priority: 'URGENT', project_id: 1, is_overdue: true, comments_count: 5, created_at: new Date().toISOString() },
+    { id: 'demo-t1', title: 'Thiết kế ERD cho toàn hệ thống', status: 'DONE', priority: 'HIGH', project_id: 'demo-alpha', comments_count: 3, created_at: new Date().toISOString() },
+    { id: 'demo-t2', title: 'Dựng skeleton FastAPI + Docker Compose', status: 'DONE', priority: 'HIGH', project_id: 'demo-alpha', comments_count: 1, created_at: new Date().toISOString() },
+    { id: 'demo-t3', title: 'API đăng ký / đăng nhập với JWT', status: 'DONE', priority: 'URGENT', project_id: 'demo-alpha', comments_count: 2, created_at: new Date().toISOString() },
+    { id: 'demo-t4', title: 'Màn hình đăng nhập bằng React', status: 'DONE', priority: 'MEDIUM', project_id: 'demo-alpha', comments_count: 0, created_at: new Date().toISOString() },
+    { id: 'demo-t5', title: 'Viết unit test cho module xác thực', status: 'REVIEW', priority: 'HIGH', project_id: 'demo-alpha', comments_count: 4, created_at: new Date().toISOString() },
+    { id: 'demo-t6', title: 'API CRUD sản phẩm', status: 'IN_PROGRESS', priority: 'URGENT', project_id: 'demo-alpha', comments_count: 2, created_at: new Date().toISOString() },
+    { id: 'demo-t7', title: 'Trang danh sách sản phẩm + phân trang', status: 'IN_PROGRESS', priority: 'HIGH', project_id: 'demo-alpha', comments_count: 1, created_at: new Date().toISOString() },
+    { id: 'demo-t8', title: 'Chức năng giỏ hàng phía frontend', status: 'IN_PROGRESS', priority: 'MEDIUM', project_id: 'demo-alpha', comments_count: 0, created_at: new Date().toISOString() },
+    { id: 'demo-t9', title: 'Tích hợp cổng thanh toán sandbox', status: 'TODO', priority: 'HIGH', project_id: 'demo-alpha', comments_count: 0, created_at: new Date().toISOString() },
+    { id: 'demo-t10', title: 'Trang quản trị đơn hàng', status: 'TODO', priority: 'MEDIUM', project_id: 'demo-alpha', comments_count: 0, created_at: new Date().toISOString() },
+    { id: 'demo-t13', title: 'Chức năng tìm kiếm sản phẩm nâng cao', status: 'IN_PROGRESS', priority: 'URGENT', project_id: 'demo-alpha', is_overdue: true, comments_count: 5, created_at: new Date().toISOString() },
   ]);
 
   const [activeTask, setActiveTask] = useState<Task | null>(null);
@@ -50,6 +79,7 @@ export const KanbanBoardPage: React.FC<KanbanBoardPageProps> = ({
   const [priorityFilter, setPriorityFilter] = useState<string>('ALL');
   const [overdueOnly, setOverdueOnly] = useState<boolean>(false);
   const [projectMembers, setProjectMembers] = useState<User[]>([]);
+  const [moveError, setMoveError] = useState<string | null>(null);
 
   useEffect(() => {
     if (project) {
@@ -60,11 +90,17 @@ export const KanbanBoardPage: React.FC<KanbanBoardPageProps> = ({
     }
   }, [project]);
 
+  useEffect(() => {
+    onTasksChange?.(tasks);
+  }, [tasks, onTasksChange]);
+
   const fetchTasks = async () => {
     if (!project) return;
     try {
       const res = await api.get<Task[]>(`/projects/${project.id}/tasks`);
-      if (res.data && Array.isArray(res.data) && res.data.length > 0) {
+      // Nhận cả mảng rỗng: dự án không có task nào thì phải hiện board
+      // trống, không phải giữ lại dữ liệu mẫu của dự án khác.
+      if (Array.isArray(res.data)) {
         setTasks(res.data);
       }
     } catch {
@@ -78,8 +114,8 @@ export const KanbanBoardPage: React.FC<KanbanBoardPageProps> = ({
   );
 
   const handleDragStart = (event: DragStartEvent) => {
-    const taskId = Number(event.active.id);
-    const task = tasks.find((t) => t.id === taskId);
+    const taskId = String(event.active.id);
+    const task = tasks.find((t) => t.id.toString() === taskId);
     if (task) setActiveTask(task);
   };
 
@@ -89,34 +125,33 @@ export const KanbanBoardPage: React.FC<KanbanBoardPageProps> = ({
 
     if (!over) return;
 
-    const activeId = Number(active.id);
-    const overId = over.id.toString();
-
-    // Determine target column status
-    let targetStatus: TaskStatus | null = null;
-    if (['TODO', 'IN_PROGRESS', 'REVIEW', 'DONE'].includes(overId)) {
-      targetStatus = overId as TaskStatus;
-    } else {
-      const overTask = tasks.find((t) => t.id.toString() === overId);
-      if (overTask) targetStatus = overTask.status;
-    }
-
+    const activeId = String(active.id);
+    const targetStatus = resolveTargetStatus(over, tasks);
     if (!targetStatus) return;
 
-    const currentTask = tasks.find((t) => t.id === activeId);
+    const currentTask = tasks.find((t) => t.id.toString() === activeId);
     if (!currentTask || currentTask.status === targetStatus) return;
 
     // Optimistic Update
-    const originalTasks = [...tasks];
+    const originalTasks = tasks;
+    setMoveError(null);
     setTasks((prev) =>
-      prev.map((t) => (t.id === activeId ? { ...t, status: targetStatus! } : t))
+      prev.map((t) => (t.id.toString() === activeId ? { ...t, status: targetStatus } : t))
     );
 
+    // Task mẫu chỉ tồn tại ở client, gọi API sẽ 404 và thẻ bật ngược lại
+    // khiến board demo trông như hỏng.
+    if (activeId.startsWith('demo-')) return;
+
     try {
-      await api.patch(`/tasks/${activeId}/move`, { status: targetStatus });
+      const res = await api.patch<Task>(`/tasks/${activeId}/move`, { status: targetStatus });
+      if (res.data?.id) {
+        setTasks((prev) => prev.map((t) => (t.id.toString() === activeId ? res.data : t)));
+      }
     } catch {
       // Rollback on error per US-13
       setTasks(originalTasks);
+      setMoveError('Không chuyển được trạng thái công việc. Thẻ đã trở về cột cũ.');
     }
   };
 
@@ -199,12 +234,25 @@ export const KanbanBoardPage: React.FC<KanbanBoardPageProps> = ({
         </div>
       </div>
 
+      {moveError && (
+        <div className="mb-4 px-4 py-2.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs font-medium flex items-center justify-between gap-3">
+          <span>{moveError}</span>
+          <button onClick={() => setMoveError(null)} className="text-rose-400 hover:text-rose-200">
+            Đóng
+          </button>
+        </div>
+      )}
+
       {/* Kanban Drag and Drop Context */}
       <DndContext
         sensors={sensors}
         collisionDetection={closestCorners}
+        // Cột co giãn theo số thẻ trong lúc kéo; đo một lần lúc bắt đầu thì
+        // vùng thả lệch so với vị trí thật của cột.
+        measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
+        onDragCancel={() => setActiveTask(null)}
       >
         <div className="flex gap-6 overflow-x-auto pb-6">
           {columns.map((col) => (
@@ -219,8 +267,10 @@ export const KanbanBoardPage: React.FC<KanbanBoardPageProps> = ({
           ))}
         </div>
 
-        <DragOverlay>
-          {activeTask ? <KanbanCard task={activeTask} onClick={() => {}} /> : null}
+        <DragOverlay dropAnimation={null}>
+          {activeTask ? (
+            <KanbanCardView task={activeTask} className="rotate-2 shadow-2xl shadow-black/40" />
+          ) : null}
         </DragOverlay>
       </DndContext>
 
@@ -244,7 +294,7 @@ export const KanbanBoardPage: React.FC<KanbanBoardPageProps> = ({
         <CreateTaskModal
           isOpen={!!createModalStatus}
           onClose={() => setCreateModalStatus(null)}
-          projectId={project?.id || 1}
+          projectId={project?.id ?? ''}
           initialStatus={createModalStatus}
           members={projectMembers}
           onTaskCreated={(newTask) => {

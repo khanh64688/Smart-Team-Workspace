@@ -6,13 +6,14 @@ import { api } from '../../lib/api';
 interface AISprintSummaryModalProps {
   isOpen: boolean;
   onClose: () => void;
-  sprintId?: number;
+  /** UUID sprint. Chưa có thì nút làm mới không gọi API. */
+  sprintId?: string;
 }
 
 export const AISprintSummaryModal: React.FC<AISprintSummaryModalProps> = ({
   isOpen,
   onClose,
-  sprintId = 1,
+  sprintId,
 }) => {
   const [loading, setLoading] = useState(false);
   const [summary, setSummary] = useState<AISummary | null>({
@@ -41,6 +42,9 @@ export const AISprintSummaryModal: React.FC<AISprintSummaryModalProps> = ({
   if (!isOpen) return null;
 
   const handleRefreshAI = async () => {
+    // Chưa chọn sprint thì đừng gọi /sprints/undefined/ai-summary.
+    if (!sprintId) return;
+
     setLoading(true);
     try {
       const res = await api.post<AISummary>(`/sprints/${sprintId}/ai-summary`);
