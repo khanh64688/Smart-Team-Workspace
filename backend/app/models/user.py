@@ -100,3 +100,14 @@ class User(Base):
         back_populates="user",
         cascade="all, delete-orphan",
     )
+
+
+    # nguyen duc dat them moi quan he bang
+    comments = relationship(
+        "Comment",
+        back_populates="author",
+        cascade="all, delete-orphan"
+    )
+
+    # assignee: Mapped["User | None"] = relationship(back_populates="tasks")
+    tasks = relationship("Task", back_populates='assignee', cascade="all, delete-orphan")

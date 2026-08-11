@@ -195,6 +195,10 @@ class UserRepository:
         # Tải lại id, created_at và các giá trị do database sinh.
         self.db.refresh(user)
 
+        # Nguyen duc dat them test
+        # self.db.commit()
+        # thu ma eo dc
+
         return user
 
     def update_profile(

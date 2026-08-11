@@ -28,3 +28,9 @@ class Project(Base):
 
     owner = relationship("User", back_populates="owned_projects", foreign_keys=[owner_id])
     members = relationship("ProjectMember", back_populates="project", cascade="all, delete-orphan", passive_deletes=True)
+
+    # nguyen duc dat them relationship 
+    sprints = relationship("Sprint", back_populates="project",
+            cascade="all, delete-orphan")
+
+    tasks = relationship("Task", back_populates='project', cascade="all, delete-orphan")
