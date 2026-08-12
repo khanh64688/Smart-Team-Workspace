@@ -1,7 +1,7 @@
 export type UserRole = 'ADMIN' | 'PM' | 'MEMBER';
 
 export interface User {
-  id: number;
+  id: string;
   email: string;
   full_name: string;
   role: UserRole;
@@ -23,20 +23,30 @@ export interface AccessTokenResponse {
 
 export type ProjectStatus = 'ACTIVE' | 'CLOSED' | 'ARCHIVED';
 
+export type ProjectRole = 'OWNER' | 'MANAGER' | 'MEMBER';
+
 export interface ProjectMember {
-  id?: number;
-  user_id: number;
-  project_id: number;
-  role?: string;
+  user_id: string;
+  project_id?: string;
+  project_role: ProjectRole;
+  joined_at?: string;
   user: User;
 }
 
+export interface MemberOut {
+  user_id: string;
+  full_name: string;
+  email: string;
+  project_role: ProjectRole;
+  joined_at: string;
+}
+
 export interface Project {
-  id: number;
+  id: string;
   name: string;
   description?: string;
   status: ProjectStatus;
-  owner_id: number;
+  owner_id: string;
   owner?: User;
   members?: ProjectMember[];
   created_at: string;
@@ -46,43 +56,42 @@ export interface Project {
 export type SprintStatus = 'PLANNED' | 'ACTIVE' | 'CLOSED';
 
 export interface Sprint {
-  id: number;
+  id: string;
   name: string;
   goal?: string;
   start_date: string;
   end_date: string;
   status: SprintStatus;
-  project_id: number;
-  created_at: string;
+  project_id: string;
 }
 
 export type TaskStatus = 'TODO' | 'IN_PROGRESS' | 'REVIEW' | 'DONE';
 export type TaskPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
 
 export interface Task {
-  id: number;
+  id: string;
   title: string;
   description?: string;
   status: TaskStatus;
   priority: TaskPriority;
-  deadline?: string;
-  assignee_id?: number;
+  due_date?: string;
+  assignee_id?: string;
   assignee?: User;
-  sprint_id?: number;
-  project_id: number;
+  sprint_id?: string;
+  project_id: string;
   position?: number;
   is_overdue?: boolean;
   comments_count?: number;
   created_at: string;
-  updated_at?: string;
+  completed_at?: string;
 }
 
 export interface Comment {
-  id: number;
+  id: string;
   content: string;
-  user_id: number;
+  user_id: string;
   user: User;
-  task_id: number;
+  task_id: string;
   created_at: string;
 }
 
@@ -96,12 +105,12 @@ export interface AISummary {
 }
 
 export interface Notification {
-  id: number;
+  id: string;
   title: string;
   message: string;
   is_read: boolean;
   created_at: string;
-  task_id?: number;
+  task_id?: string;
 }
 
 export interface DashboardMetrics {
@@ -111,5 +120,5 @@ export interface DashboardMetrics {
   overdue_tasks: number;
   by_status: Record<TaskStatus, number>;
   by_priority: Record<TaskPriority, number>;
-  by_assignee: Array<{ user_id: number; user_name: string; count: number }>;
+  by_assignee: Array<{ user_id: string; user_name: string; count: number }>;
 }

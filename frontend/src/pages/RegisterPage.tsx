@@ -37,15 +37,25 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onSwitchToLogin }) =
         email,
         full_name: fullName,
         password,
+        confirm_password: confirmPassword,
       });
       setSuccess('Account created successfully! You can now log in.');
       setTimeout(() => {
         onSwitchToLogin();
       }, 1500);
     } catch (err: any) {
-      if (err.response?.data?.detail) {
-        const detail = err.response.data.detail;
-        setError(typeof detail === 'string' ? detail : detail?.message || 'Registration failed.');
+      const responseData = err.response?.data;
+      if (responseData?.detail) {
+        const detail = responseData.detail;
+        if (Array.isArray(detail)) {
+          // Extract messages from FastAPI validation array
+          const messages = detail.map((d: any) => `${d.loc?.join('.') || 'error'}: ${d.msg}`).join(', ');
+          setError(messages);
+        } else {
+          setError(typeof detail === 'string' ? detail : detail?.message || 'Registration failed.');
+        }
+      } else if (responseData?.message) {
+        setError(responseData.message);
       } else {
         setError('Email already exists or invalid data.');
       }

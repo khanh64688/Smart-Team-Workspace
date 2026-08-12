@@ -9,7 +9,7 @@ from app.repositories.project import ProjectRepository
 from app.schemas.project import MemberCreate, MemberOut, MemberRoleUpdate, ProjectCreate, ProjectOut, ProjectPage, ProjectUpdate
 from app.services.project import ProjectService
 
-router = APIRouter(prefix="/projects", tags=["Projects"])
+router = APIRouter(prefix="/projects", tags=["projects"])
 
 def service(db: DbSession): return ProjectService(db)
 
