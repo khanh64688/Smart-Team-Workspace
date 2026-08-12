@@ -79,17 +79,17 @@ export const KanbanBoardPage: React.FC<KanbanBoardPageProps> = ({
   };
   
   // Nguyen duc dat sua theo API backend
-  const fetchTasksv1 = async () => {
-    if (!project) return;
-    try {
-      const res = await api.get<Task[]>(`/tasks?project_id=${project.id}`);
-      if (res.data && Array.isArray(res.data) && res.data.length > 0) {
-        setTasks(res.data);
-      }
-    } catch {
-      // Keep seeded tasks
-    }
-  };
+  // const fetchTasksv1 = async () => {
+  //   if (!project) return;
+  //   try {
+  //     const res = await api.get<Task[]>(`/tasks?project_id=${project.id}`);
+  //     if (res.data && Array.isArray(res.data) && res.data.length > 0) {
+  //       setTasks(res.data);
+  //     }
+  //   } catch {
+  //     // Keep seeded tasks
+  //   }
+  // };
 
   const sensors = useSensors(
     useSensor(MouseSensor, {
