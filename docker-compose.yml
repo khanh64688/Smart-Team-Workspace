@@ -1,115 +1,43 @@
-# =============================================================
-#  Smart Team Workspace — môi trường phát triển
-#
-#  Chạy toàn bộ hệ thống:   docker compose up --build
-#  Dừng:                    docker compose down
-#  Xoá luôn dữ liệu CSDL:   docker compose down -v
-#
-#  Mọi biến đều có giá trị mặc định, nên KHÔNG cần tạo .env vẫn chạy được.
-#  Chỉ tạo .env (cp .env.example .env) khi cần đổi cổng hoặc dùng tính năng AI.
-# =============================================================
-
-# Đặt tên project cố định. Nếu thiếu dòng này, Docker lấy tên thư mục cha
-# làm tên project — mỗi người clone vào thư mục khác nhau sẽ ra container và
-# volume khác nhau, và dễ đụng với project khác trên cùng máy.
-#
-# KHÔNG đặt `container_name` cho từng service. Tên đó là duy nhất trên toàn máy
-# Docker, nên chỉ cần một project khác (hoặc một container cũ đã tắt) trùng tên
-# là báo lỗi "container name is already in use". Để Compose tự đặt tên theo
-# dạng <project>-<service>-<số>, ví dụ smart-team-workspace-backend-1.
-name: smart-team-workspace
-
 services:
-  # -----------------------------------------------------------
-  #  PostgreSQL
-  # -----------------------------------------------------------
   db:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-stw}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-stw}
-      POSTGRES_DB: ${POSTGRES_DB:-stw}
-      # Tăng tốc so sánh chuỗi và tránh lỗi collation khi đổi máy.
-      POSTGRES_INITDB_ARGS: "--encoding=UTF8"
+      POSTGRES_USER: ${POSTGRES_USER:-twl}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-twlpass}
+      POSTGRES_DB: ${POSTGRES_DB:-smart_team_db}
     ports:
-      # Đổi POSTGRES_PORT trong .env nếu máy bạn đã cài sẵn PostgreSQL ở 5432.
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
-      # Named volume, không phải bind mount: dữ liệu không nằm trong thư mục
-      # repo nên không lọt vào Git và không xung đột quyền trên Windows.
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-stw} -d ${POSTGRES_DB:-stw}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-twl} -d ${POSTGRES_DB:-smart_team_db}"]
       interval: 5s
       timeout: 5s
-      retries: 12
-      start_period: 10s
+      retries: 10
     restart: unless-stopped
-    networks: [stw-net]
 
-  # -----------------------------------------------------------
-  #  Backend — FastAPI
-  # -----------------------------------------------------------
   backend:
-    build:
-      context: ./backend
-      target: dev
-    environment:
-      # Host là `db` (tên service), KHÔNG phải localhost — trong mạng Docker
-      # localhost trỏ về chính container backend.
-      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg2://stw:stw@db:5432/stw}
-      SECRET_KEY: ${SECRET_KEY:-dev-secret-doi-truoc-khi-deploy}
-      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-15}
-      REFRESH_TOKEN_EXPIRE_DAYS: ${REFRESH_TOKEN_EXPIRE_DAYS:-7}
-      AI_PROVIDER: ${AI_PROVIDER:-gemini}
-      AI_API_KEY: ${AI_API_KEY:-}
-      PYTHONUNBUFFERED: "1"
+    build: ./backend
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     ports:
-      - "${BACKEND_PORT:-8000}:8000"
-    volumes:
-      # Bind mount để sửa code trên máy host là uvicorn --reload nạp lại ngay.
-      - ./backend:/app
-      # Volume rỗng che __pycache__ của host: file .pyc biên dịch bằng Python
-      # phiên bản khác sẽ làm container lỗi khó hiểu.
-      - /app/__pycache__
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-twl}:${POSTGRES_PASSWORD:-twlpass}@db:5432/${POSTGRES_DB:-smart_team_db}
+      - SECRET_KEY=${SECRET_KEY:-dev_secret_key_change_me_in_production}
+      - AI_API_KEY=${AI_API_KEY:-}
+      - AI_PROVIDER=${AI_PROVIDER:-gemini}
     depends_on:
       db:
-        # Chờ PostgreSQL thật sự nhận kết nối rồi mới khởi động, tránh lỗi
-        # "connection refused" ở lần `up` đầu tiên.
         condition: service_healthy
-    restart: unless-stopped
-    networks: [stw-net]
-
-  # -----------------------------------------------------------
-  #  Frontend — React + Vite
-  # -----------------------------------------------------------
-  frontend:
-    build:
-      context: ./frontend
-      target: dev
-    environment:
-      # Trình duyệt chạy trên máy host nên phải gọi localhost, không gọi `backend`.
-      VITE_API_URL: ${VITE_API_URL:-http://localhost:${BACKEND_PORT:-8000}}
-    ports:
-      - "${FRONTEND_PORT:-5173}:5173"
     volumes:
-      - ./frontend:/app
-      # Volume ẩn danh giữ lại node_modules do container tự cài.
-      # Thiếu dòng này, bind mount ở trên sẽ che mất node_modules trong ảnh và
-      # vite báo "Cannot find module" — lỗi kinh điển khi chạy Node trong Docker.
-      - /app/node_modules
+      - ./backend:/app
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "5173:80"
     depends_on:
       - backend
-    restart: unless-stopped
-    networks: [stw-net]
 
-# Không đặt `name:` cố định ở đây, cùng lý do với container_name: tên volume và
-# network là duy nhất trên toàn máy Docker. Compose tự thêm tiền tố tên project
-# nên ra `smart-team-workspace_postgres_data` và `smart-team-workspace_stw-net`,
-# không bao giờ đụng project khác.
 volumes:
   postgres_data:
-
-networks:
-  stw-net:
-    driver: bridge
