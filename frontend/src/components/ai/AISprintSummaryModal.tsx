@@ -6,13 +6,13 @@ import { api } from '../../lib/api';
 interface AISprintSummaryModalProps {
   isOpen: boolean;
   onClose: () => void;
-  sprintId?: number;
+  sprintId?: string;
 }
 
 export const AISprintSummaryModal: React.FC<AISprintSummaryModalProps> = ({
   isOpen,
   onClose,
-  sprintId = 1,
+  sprintId = '',
 }) => {
   const [loading, setLoading] = useState(false);
   const [summary, setSummary] = useState<AISummary | null>({

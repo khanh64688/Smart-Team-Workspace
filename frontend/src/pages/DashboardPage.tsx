@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import {
   PieChart,
   Pie,
@@ -12,11 +12,10 @@ import {
   Legend,
 } from 'recharts';
 import { CheckCircle2, Clock, AlertTriangle, ListTodo, Sparkles } from 'lucide-react';
-import type { Project, DashboardMetrics } from '../types/api';
-import { api } from '../lib/api';
+import type { DashboardMetrics, Task } from '../types/api';
 
 interface DashboardPageProps {
-  project: Project | null;
+  tasks: Task[];
   onOpenAISummary: () => void;
 }
 
@@ -27,37 +26,53 @@ const STATUS_COLORS = {
   DONE: '#10B981',
 };
 
-export const DashboardPage: React.FC<DashboardPageProps> = ({ project, onOpenAISummary }) => {
-  const [metrics, setMetrics] = useState<DashboardMetrics>({
-    total_tasks: 26,
-    in_progress_tasks: 8,
-    completed_tasks: 12,
-    overdue_tasks: 3,
-    by_status: { TODO: 6, IN_PROGRESS: 8, REVIEW: 2, DONE: 10 },
-    by_priority: { LOW: 4, MEDIUM: 10, HIGH: 8, URGENT: 4 },
-    by_assignee: [
-      { user_id: 4, user_name: 'Lê Thị An', count: 8 },
-      { user_id: 5, user_name: 'Phạm Quốc Bình', count: 7 },
-      { user_id: 6, user_name: 'Đỗ Ngọc Chi', count: 6 },
-      { user_id: 7, user_name: 'Vũ Tiến Dũng', count: 5 },
-    ],
-  });
+export const DashboardPage: React.FC<DashboardPageProps> = ({ tasks, onOpenAISummary }) => {
+  const metrics = React.useMemo<DashboardMetrics>(() => {
+    const byStatus = { TODO: 0, IN_PROGRESS: 0, REVIEW: 0, DONE: 0 };
+    const byPriority = { LOW: 0, MEDIUM: 0, HIGH: 0, URGENT: 0 };
+    const assigneeMap: Record<string, { name: string; count: number }> = {};
+    let overdueCount = 0;
 
-  useEffect(() => {
-    if (project) {
-      fetchDashboardMetrics();
-    }
-  }, [project]);
+    tasks.forEach((t) => {
+      // Status
+      if (t.status in byStatus) {
+        byStatus[t.status as keyof typeof byStatus]++;
+      }
+      // Priority
+      if (t.priority in byPriority) {
+        byPriority[t.priority as keyof typeof byPriority]++;
+      }
+      // Overdue
+      if (t.is_overdue) {
+        overdueCount++;
+      }
+      // Assignee
+      if (t.assignee) {
+        const uid = t.assignee.id;
+        const name = t.assignee.full_name;
+        if (!assigneeMap[uid]) {
+          assigneeMap[uid] = { name, count: 0 };
+        }
+        assigneeMap[uid].count++;
+      }
+    });
 
-  const fetchDashboardMetrics = async () => {
-    if (!project) return;
-    try {
-      const res = await api.get<DashboardMetrics>(`/projects/${project.id}/dashboard`);
-      if (res.data) setMetrics(res.data);
-    } catch {
-      // Use mock seed metrics
-    }
-  };
+    const byAssignee = Object.entries(assigneeMap).map(([uid, info]) => ({
+      user_id: uid,
+      user_name: info.name,
+      count: info.count,
+    }));
+
+    return {
+      total_tasks: tasks.length,
+      in_progress_tasks: byStatus.IN_PROGRESS,
+      completed_tasks: byStatus.DONE,
+      overdue_tasks: overdueCount,
+      by_status: byStatus,
+      by_priority: byPriority,
+      by_assignee: byAssignee,
+    };
+  }, [tasks]);
 
   const statusPieData = [
     { name: 'Todo', value: metrics.by_status.TODO || 0, color: STATUS_COLORS.TODO },

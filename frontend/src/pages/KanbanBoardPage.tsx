@@ -3,47 +3,40 @@ import {
   DndContext,
   DragOverlay,
   closestCorners,
+  MouseSensor,
+  TouchSensor,
   KeyboardSensor,
-  PointerSensor,
   useSensor,
   useSensors,
   type DragStartEvent,
   type DragEndEvent,
 } from '@dnd-kit/core';
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
-import type { Task, TaskStatus, Project, User } from '../types/api';
+import type { Task, TaskStatus, Project, User, MemberOut } from '../types/api';
 import { KanbanColumn } from '../components/kanban/KanbanColumn';
 import { KanbanCard } from '../components/kanban/KanbanCard';
 import { TaskDetailModal } from '../components/kanban/TaskDetailModal';
 import { CreateTaskModal } from '../components/kanban/CreateTaskModal';
-import { Filter, Plus, Sparkles } from 'lucide-react';
+import { Filter, Plus, Sparkles, RefreshCw } from 'lucide-react';
 import { api } from '../lib/api';
 
 interface KanbanBoardPageProps {
   project: Project | null;
+  tasks: Task[];
   searchQuery: string;
   onOpenAISummary: () => void;
+  onTasksChange: (tasks: Task[]) => void;
+  onRefreshTasks: () => void;
 }
 
 export const KanbanBoardPage: React.FC<KanbanBoardPageProps> = ({
   project,
+  tasks,
   searchQuery,
   onOpenAISummary,
+  onTasksChange,
+  onRefreshTasks,
 }) => {
-  const [tasks, setTasks] = useState<Task[]>([
-    { id: 1, title: 'Thiết kế ERD cho toàn hệ thống', status: 'DONE', priority: 'HIGH', project_id: 1, comments_count: 3, created_at: new Date().toISOString() },
-    { id: 2, title: 'Dựng skeleton FastAPI + Docker Compose', status: 'DONE', priority: 'HIGH', project_id: 1, comments_count: 1, created_at: new Date().toISOString() },
-    { id: 3, title: 'API đăng ký / đăng nhập với JWT', status: 'DONE', priority: 'URGENT', project_id: 1, comments_count: 2, created_at: new Date().toISOString() },
-    { id: 4, title: 'Màn hình đăng nhập bằng React', status: 'DONE', priority: 'MEDIUM', project_id: 1, comments_count: 0, created_at: new Date().toISOString() },
-    { id: 5, title: 'Viết unit test cho module xác thực', status: 'REVIEW', priority: 'HIGH', project_id: 1, comments_count: 4, created_at: new Date().toISOString() },
-    { id: 6, title: 'API CRUD sản phẩm', status: 'IN_PROGRESS', priority: 'URGENT', project_id: 1, comments_count: 2, created_at: new Date().toISOString() },
-    { id: 7, title: 'Trang danh sách sản phẩm + phân trang', status: 'IN_PROGRESS', priority: 'HIGH', project_id: 1, comments_count: 1, created_at: new Date().toISOString() },
-    { id: 8, title: 'Chức năng giỏ hàng phía frontend', status: 'IN_PROGRESS', priority: 'MEDIUM', project_id: 1, comments_count: 0, created_at: new Date().toISOString() },
-    { id: 9, title: 'Tích hợp cổng thanh toán sandbox', status: 'TODO', priority: 'HIGH', project_id: 1, comments_count: 0, created_at: new Date().toISOString() },
-    { id: 10, title: 'Trang quản trị đơn hàng', status: 'TODO', priority: 'MEDIUM', project_id: 1, comments_count: 0, created_at: new Date().toISOString() },
-    { id: 13, title: 'Chức năng tìm kiếm sản phẩm nâng cao', status: 'IN_PROGRESS', priority: 'URGENT', project_id: 1, is_overdue: true, comments_count: 5, created_at: new Date().toISOString() },
-  ]);
-
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   const [selectedTaskDetail, setSelectedTaskDetail] = useState<Task | null>(null);
   const [createModalStatus, setCreateModalStatus] = useState<TaskStatus | null>(null);
@@ -51,85 +44,110 @@ export const KanbanBoardPage: React.FC<KanbanBoardPageProps> = ({
   const [overdueOnly, setOverdueOnly] = useState<boolean>(false);
   const [projectMembers, setProjectMembers] = useState<User[]>([]);
 
+  // Fetch project members when project changes
   useEffect(() => {
     if (project) {
-      fetchTasks();
-      if (project.members) {
-        setProjectMembers(project.members.map((m) => m.user));
-      }
+      fetchProjectMembers();
     }
-  }, [project]);
+  }, [project?.id]);
 
-  const fetchTasks = async () => {
+  const fetchProjectMembers = async () => {
     if (!project) return;
     try {
-      const res = await api.get<Task[]>(`/projects/${project.id}/tasks`);
-      if (res.data && Array.isArray(res.data) && res.data.length > 0) {
-        setTasks(res.data);
+      const res = await api.get<MemberOut[]>(`/projects/${project.id}/members`);
+      if (Array.isArray(res.data)) {
+        const list = res.data.map((m) => ({
+          id: m.user_id,
+          full_name: m.full_name,
+          email: m.email,
+          role: m.project_role,
+        }));
+        setProjectMembers(list as any);
       }
     } catch {
-      // Keep seeded tasks
+      // Fall back to members embedded in the project object
+      if (project.members) {
+        const list = project.members.map((m) => ({
+          id: m.user_id,
+          full_name: m.user?.full_name || 'User',
+          email: m.user?.email || '',
+          role: m.project_role,
+        }));
+        setProjectMembers(list as any);
+      }
     }
   };
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(MouseSensor, {
+      activationConstraint: {
+        distance: 10,
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 250,
+        tolerance: 5,
+      },
+    }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
   const handleDragStart = (event: DragStartEvent) => {
-    const taskId = Number(event.active.id);
-    const task = tasks.find((t) => t.id === taskId);
+    const task = tasks.find((t) => t.id === event.active.id);
     if (task) setActiveTask(task);
   };
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveTask(null);
-
     if (!over) return;
 
-    const activeId = Number(active.id);
+    const activeId = active.id as string;
     const overId = over.id.toString();
 
-    // Determine target column status
     let targetStatus: TaskStatus | null = null;
     if (['TODO', 'IN_PROGRESS', 'REVIEW', 'DONE'].includes(overId)) {
       targetStatus = overId as TaskStatus;
     } else {
-      const overTask = tasks.find((t) => t.id.toString() === overId);
+      const overTask = tasks.find((t) => t.id === overId);
       if (overTask) targetStatus = overTask.status;
     }
 
     if (!targetStatus) return;
-
     const currentTask = tasks.find((t) => t.id === activeId);
-    if (!currentTask || currentTask.status === targetStatus) return;
+    if (!currentTask) return;
 
-    // Optimistic Update
-    const originalTasks = [...tasks];
-    setTasks((prev) =>
-      prev.map((t) => (t.id === activeId ? { ...t, status: targetStatus! } : t))
-    );
+    // Handle reordering within the same column
+    if (currentTask.status === targetStatus) {
+      const oldIndex = tasks.findIndex((t) => t.id === activeId);
+      const newIndex = tasks.findIndex((t) => t.id === overId);
+      if (oldIndex !== -1 && newIndex !== -1 && oldIndex !== newIndex) {
+        const reordered = [...tasks];
+        const [removed] = reordered.splice(oldIndex, 1);
+        reordered.splice(newIndex, 0, removed);
+        onTasksChange(reordered);
+      }
+      return;
+    }
+
+    // Optimistic update for cross-column move
+    const original = [...tasks];
+    onTasksChange(tasks.map((t) => (t.id === activeId ? { ...t, status: targetStatus! } : t)));
 
     try {
       await api.patch(`/tasks/${activeId}/move`, { status: targetStatus });
-    } catch {
-      // Rollback on error per US-13
-      setTasks(originalTasks);
+    } catch (err: any) {
+      onTasksChange(original); // Rollback on restriction breach
+      const detail = err.response?.data?.detail;
+      alert(typeof detail === 'string' ? detail : detail?.message || 'Failed to move task. Ensure transition rule and assignment rights are followed.');
     }
   };
 
   const filteredTasks = tasks.filter((t) => {
-    if (searchQuery && !t.title.toLowerCase().includes(searchQuery.toLowerCase())) {
-      return false;
-    }
-    if (priorityFilter !== 'ALL' && t.priority !== priorityFilter) {
-      return false;
-    }
-    if (overdueOnly && !t.is_overdue) {
-      return false;
-    }
+    if (searchQuery && !t.title.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+    if (priorityFilter !== 'ALL' && t.priority !== priorityFilter) return false;
+    if (overdueOnly && !t.is_overdue) return false;
     return true;
   });
 
@@ -140,14 +158,22 @@ export const KanbanBoardPage: React.FC<KanbanBoardPageProps> = ({
     { id: 'DONE', title: 'Done' },
   ];
 
+  if (!project) {
+    return (
+      <div className="p-8 flex items-center justify-center h-full">
+        <p className="text-gray-400 text-sm">Select a project to view its Kanban board.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="p-8">
-      {/* Board Header & Controls */}
+      {/* Board Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-white tracking-tight">Kanban Board</h1>
           <p className="text-xs text-gray-400 mt-1">
-            {project?.name || 'Sprint Workspace'} — Drag cards to transition status
+            {project.name} — Drag cards to transition status
           </p>
         </div>
 
@@ -168,7 +194,6 @@ export const KanbanBoardPage: React.FC<KanbanBoardPageProps> = ({
             </select>
           </div>
 
-          {/* Overdue filter toggle */}
           <button
             onClick={() => setOverdueOnly(!overdueOnly)}
             className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
@@ -180,7 +205,14 @@ export const KanbanBoardPage: React.FC<KanbanBoardPageProps> = ({
             Overdue Only
           </button>
 
-          {/* AI Report Quick Trigger */}
+          <button
+            onClick={onRefreshTasks}
+            className="p-2 rounded-xl text-gray-400 border border-gray-800 bg-gray-900/80 hover:text-white transition-colors"
+            title="Refresh tasks"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+          </button>
+
           <button
             onClick={onOpenAISummary}
             className="px-3.5 py-2 bg-gradient-to-r from-amber-500 to-indigo-600 hover:from-amber-600 hover:to-indigo-700 text-white rounded-xl text-xs font-semibold shadow-md flex items-center gap-1.5 transition-all"
@@ -199,7 +231,7 @@ export const KanbanBoardPage: React.FC<KanbanBoardPageProps> = ({
         </div>
       </div>
 
-      {/* Kanban Drag and Drop Context */}
+      {/* Kanban Board */}
       <DndContext
         sensors={sensors}
         collisionDetection={closestCorners}
@@ -231,11 +263,12 @@ export const KanbanBoardPage: React.FC<KanbanBoardPageProps> = ({
         task={selectedTaskDetail}
         members={projectMembers}
         onTaskUpdated={(updated) => {
-          setTasks((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
+          onTasksChange(tasks.map((t) => (t.id === updated.id ? updated : t)));
           setSelectedTaskDetail(updated);
         }}
         onTaskDeleted={(id) => {
-          setTasks((prev) => prev.filter((t) => t.id !== id));
+          onTasksChange(tasks.filter((t) => t.id !== id));
+          setSelectedTaskDetail(null);
         }}
       />
 
@@ -244,11 +277,11 @@ export const KanbanBoardPage: React.FC<KanbanBoardPageProps> = ({
         <CreateTaskModal
           isOpen={!!createModalStatus}
           onClose={() => setCreateModalStatus(null)}
-          projectId={project?.id || 1}
+          projectId={project.id}
           initialStatus={createModalStatus}
           members={projectMembers}
           onTaskCreated={(newTask) => {
-            setTasks((prev) => [newTask, ...prev]);
+            onTasksChange([newTask, ...tasks]);
           }}
         />
       )}

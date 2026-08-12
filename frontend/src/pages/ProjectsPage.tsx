@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { Plus, Users, Calendar, ArrowRight, FolderKanban } from 'lucide-react';
+import { Plus, Users, Calendar, ArrowRight, FolderKanban, Edit3, Lock, Trash2 } from 'lucide-react';
 import type { Project } from '../types/api';
 import { useAuth } from '../context/AuthContext';
-import { CreateProjectModal } from '../components/projects/CreateProjectModal';
+import { ProjectModal } from '../components/projects/ProjectModal';
 import { MemberManagementModal } from '../components/projects/MemberManagementModal';
+import { api } from '../lib/api';
 
 interface ProjectsPageProps {
   projects: Project[];
@@ -18,13 +19,64 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({
 }) => {
   const { user } = useAuth();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [selectedForEdit, setSelectedForEdit] = useState<Project | null>(null);
   const [selectedForMembers, setSelectedForMembers] = useState<Project | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const filteredProjects = projects.filter((p) => {
     if (statusFilter === 'ALL') return true;
     return p.status === statusFilter;
   });
+
+  // Permission helpers based on backend constraints
+  const getProjectUserRole = (project: Project) => {
+    if (user?.role === 'ADMIN') return 'OWNER';
+    const member = project.members?.find((m) => m.user_id === user?.id);
+    return member?.project_role || null;
+  };
+
+  const canEdit = (project: Project) => {
+    if (user?.role === 'ADMIN') return true;
+    const role = getProjectUserRole(project);
+    return role === 'OWNER' || role === 'MANAGER';
+  };
+
+  const canClose = (project: Project) => {
+    if (user?.role === 'ADMIN') return true;
+    const role = getProjectUserRole(project);
+    return role === 'OWNER';
+  };
+
+  const canDelete = () => {
+    return user?.role === 'ADMIN';
+  };
+
+  const handleCloseProject = async (project: Project) => {
+    if (!confirm(`Are you sure you want to close "${project.name}"? This will lock the project to read-only.`)) return;
+    setActionLoading(project.id);
+    try {
+      await api.patch(`/projects/${project.id}/close`);
+      onRefreshProjects();
+    } catch (err: any) {
+      alert(err.response?.data?.detail || 'Failed to close project.');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleDeleteProject = async (project: Project) => {
+    if (!confirm(`WARNING: Are you sure you want to permanently delete "${project.name}"? This action cannot be undone.`)) return;
+    setActionLoading(project.id);
+    try {
+      await api.delete(`/projects/${project.id}`);
+      onRefreshProjects();
+    } catch (err: any) {
+      alert(err.response?.data?.detail || 'Failed to delete project.');
+    } finally {
+      setActionLoading(null);
+    }
+  };
 
   return (
     <div className="p-8">
@@ -87,7 +139,9 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({
           {filteredProjects.map((project) => (
             <div
               key={project.id}
-              className="glass-panel glass-panel-hover p-6 rounded-3xl border border-gray-800/80 flex flex-col justify-between relative group"
+              className={`glass-panel glass-panel-hover p-6 rounded-3xl border border-gray-800/80 flex flex-col justify-between relative group transition-all ${
+                actionLoading === project.id ? 'opacity-50 pointer-events-none' : ''
+              }`}
             >
               <div>
                 <div className="flex items-center justify-between mb-3">
@@ -114,9 +168,11 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({
                 </p>
               </div>
 
+              {/* Actions row inside card */}
               <div className="mt-6 pt-4 border-t border-gray-800/60 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <div className="flex -space-x-2 overflow-hidden">
+                  {/* Members list */}
+                  <div className="flex -space-x-2 overflow-hidden mr-1">
                     {project.members && project.members.slice(0, 3).map((m, idx) => (
                       <div
                         key={idx}
@@ -132,16 +188,60 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({
                       </div>
                     )}
                   </div>
+
+                  {/* Manage Members button */}
                   {(user?.role === 'PM' || user?.role === 'ADMIN' || project.owner_id === user?.id) && (
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         setSelectedForMembers(project);
                       }}
-                      className="p-1 text-gray-400 hover:text-indigo-400 hover:bg-gray-800/60 rounded-lg transition-colors"
+                      className="p-1.5 text-gray-400 hover:text-indigo-400 hover:bg-gray-800/60 rounded-lg transition-colors"
                       title="Manage members"
                     >
                       <Users className="w-4 h-4" />
+                    </button>
+                  )}
+
+                  {/* Edit settings button */}
+                  {canEdit(project) && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedForEdit(project);
+                      }}
+                      className="p-1.5 text-gray-400 hover:text-indigo-400 hover:bg-gray-800/60 rounded-lg transition-colors"
+                      title="Edit Project"
+                    >
+                      <Edit3 className="w-4 h-4" />
+                    </button>
+                  )}
+
+                  {/* Close Project button */}
+                  {canClose(project) && project.status === 'ACTIVE' && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleCloseProject(project);
+                      }}
+                      className="p-1.5 text-gray-400 hover:text-amber-400 hover:bg-amber-500/10 rounded-lg transition-colors"
+                      title="Close Project"
+                    >
+                      <Lock className="w-4 h-4" />
+                    </button>
+                  )}
+
+                  {/* Delete Project button */}
+                  {canDelete() && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteProject(project);
+                      }}
+                      className="p-1.5 text-gray-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors"
+                      title="Delete Project"
+                    >
+                      <Trash2 className="w-4 h-4" />
                     </button>
                   )}
                 </div>
@@ -159,15 +259,20 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({
         </div>
       )}
 
-      {/* Modals */}
-      <CreateProjectModal
-        isOpen={isCreateOpen}
-        onClose={() => setIsCreateOpen(false)}
-        onProjectCreated={() => {
+      {/* Project Modal (Create/Edit) */}
+      <ProjectModal
+        isOpen={isCreateOpen || !!selectedForEdit}
+        onClose={() => {
+          setIsCreateOpen(false);
+          setSelectedForEdit(null);
+        }}
+        project={selectedForEdit}
+        onSuccess={() => {
           onRefreshProjects();
         }}
       />
 
+      {/* Member management */}
       <MemberManagementModal
         isOpen={!!selectedForMembers}
         onClose={() => setSelectedForMembers(null)}

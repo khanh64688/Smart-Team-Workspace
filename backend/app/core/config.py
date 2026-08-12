@@ -12,8 +12,9 @@ class Settings(BaseSettings):
     app_env: str = "development"
     api_v1_prefix: str = "/api/v1"
 
-    database_url: str = "sqlite:///./smart_team_workspace.db"
-    secret_key: str = "dev_secret_key_change_me_in_production"
+    database_url: str
+
+    secret_key: str
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 15
     refresh_token_expire_days: int = 7

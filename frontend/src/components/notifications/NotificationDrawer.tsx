@@ -4,37 +4,13 @@ import type { Notification } from '../../types/api';
 import { api } from '../../lib/api';
 
 interface NotificationDrawerProps {
-  onSelectTask?: (taskId: number) => void;
+  onSelectTask?: (taskId: string) => void;
 }
 
 export const NotificationDrawer: React.FC<NotificationDrawerProps> = ({ onSelectTask }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [notifications, setNotifications] = useState<Notification[]>([
-    {
-      id: 1,
-      title: 'Task Assigned',
-      message: 'You have been assigned to "API CRUD sản phẩm"',
-      is_read: false,
-      created_at: new Date(Date.now() - 1000 * 60 * 15).toISOString(),
-      task_id: 6,
-    },
-    {
-      id: 2,
-      title: 'New Comment',
-      message: 'Trần Minh Quản commented on "Viết unit test cho module xác thực"',
-      is_read: false,
-      created_at: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
-      task_id: 5,
-    },
-    {
-      id: 3,
-      title: 'Deadline Warning',
-      message: 'Task "Chức năng tìm kiếm sản phẩm nâng cao" is overdue!',
-      is_read: true,
-      created_at: new Date(Date.now() - 1000 * 60 * 180).toISOString(),
-      task_id: 13,
-    },
-  ]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+
 
   const unreadCount = notifications.filter((n) => !n.is_read).length;
 

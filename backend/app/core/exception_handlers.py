@@ -104,16 +104,9 @@ async def http_exception_handler(
     ví dụ route không tồn tại.
     """
     if isinstance(exc.detail, str):
-        code = f"HTTP_{exc.status_code}"
         message = exc.detail
         details = None
-    elif isinstance(exc.detail, dict) and "error" in exc.detail:
-        # Detail was set via api_error() → {"error": {"code": ..., "message": ...}}
-        code = exc.detail["error"].get("code", f"HTTP_{exc.status_code}")
-        message = exc.detail["error"].get("message", "Yêu cầu không thể được xử lý.")
-        details = exc.detail["error"].get("details") or None
     else:
-        code = f"HTTP_{exc.status_code}"
         message = "Yêu cầu không thể được xử lý."
         details = {
             "detail": exc.detail,
@@ -123,7 +116,7 @@ async def http_exception_handler(
         status_code=exc.status_code,
         content=jsonable_encoder(
             _error_content(
-                code=code,
+                code=f"HTTP_{exc.status_code}",
                 message=message,
                 details=details,
             )

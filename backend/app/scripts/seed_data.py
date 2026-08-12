@@ -24,18 +24,12 @@ from __future__ import annotations
 import argparse
 import random
 import sys
-from pathlib import Path
 from datetime import datetime, timedelta, timezone
-
-if hasattr(sys.stdout, 'reconfigure'):
-    sys.stdout.reconfigure(encoding='utf-8')
-
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
-from app.database import SessionLocal, engine, Base
+from app.database import Base, SessionLocal, engine
 from app.core.security import hash_password
 from app.models.comment import Comment
 from app.models.project import Project
@@ -340,7 +334,7 @@ def seed(reset: bool = False) -> None:
         all_tasks = tasks_alpha + tasks_beta
         overdue = [
             t for t in all_tasks
-            if t.due_date and (t.due_date.replace(tzinfo=None) < NOW.replace(tzinfo=None)) and t.status != "DONE"
+            if t.due_date and t.due_date < NOW and t.status != "DONE"
         ]
 
         print("\n" + "=" * 62)

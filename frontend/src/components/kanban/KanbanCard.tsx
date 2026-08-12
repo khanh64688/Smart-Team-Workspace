@@ -88,10 +88,10 @@ export const KanbanCard: React.FC<KanbanCardProps> = ({ task, onClick }) => {
               {task.comments_count}
             </span>
           )}
-          {task.deadline && (
+          {task.due_date && (
             <span className="flex items-center gap-0.5 text-gray-500">
               <Clock className="w-3 h-3" />
-              {new Date(task.deadline).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+              {new Date(task.due_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
             </span>
           )}
         </div>

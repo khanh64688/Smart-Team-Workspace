@@ -1,23 +1,40 @@
-import React, { useState } from 'react';
-import { X, FolderPlus } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, FolderPlus, Edit3 } from 'lucide-react';
 import { api } from '../../lib/api';
 import type { Project } from '../../types/api';
 
-interface CreateProjectModalProps {
+interface ProjectModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onProjectCreated: (project: Project) => void;
+  project?: Project | null; // If passed, we are editing. If null, we are creating.
+  onSuccess: (project: Project) => void;
 }
 
-export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
+export const ProjectModal: React.FC<ProjectModalProps> = ({
   isOpen,
   onClose,
-  onProjectCreated,
+  project,
+  onSuccess,
 }) => {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const isEditMode = !!project;
+
+  useEffect(() => {
+    if (isOpen) {
+      if (project) {
+        setName(project.name);
+        setDescription(project.description || '');
+      } else {
+        setName('');
+        setDescription('');
+      }
+      setError(null);
+    }
+  }, [isOpen, project]);
 
   if (!isOpen) return null;
 
@@ -27,13 +44,19 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
     setError(null);
 
     try {
-      const res = await api.post<Project>('/projects', {
-        name,
-        description,
-      });
-      onProjectCreated(res.data);
-      setName('');
-      setDescription('');
+      let res;
+      if (isEditMode && project) {
+        res = await api.put<Project>(`/projects/${project.id}`, {
+          name: name.trim(),
+          description: description.trim() || null,
+        });
+      } else {
+        res = await api.post<Project>('/projects', {
+          name: name.trim(),
+          description: description.trim() || null,
+        });
+      }
+      onSuccess(res.data);
       onClose();
     } catch (err: any) {
       if (err.response?.data?.error?.message) {
@@ -43,7 +66,7 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
       } else if (err.response?.data?.message) {
         setError(err.response.data.message);
       } else {
-        setError('Failed to create project. Please check backend connection.');
+        setError(`Failed to ${isEditMode ? 'update' : 'create'} project. Please check backend connection.`);
       }
     } finally {
       setLoading(false);
@@ -56,9 +79,11 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
         <div className="flex items-center justify-between pb-4 border-b border-gray-800">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-xl bg-indigo-600/20 text-indigo-400 flex items-center justify-center">
-              <FolderPlus className="w-4 h-4" />
+              {isEditMode ? <Edit3 className="w-4 h-4" /> : <FolderPlus className="w-4 h-4" />}
             </div>
-            <h3 className="text-lg font-bold text-white">Create New Project</h3>
+            <h3 className="text-lg font-bold text-white">
+              {isEditMode ? 'Edit Project Settings' : 'Create New Project'}
+            </h3>
           </div>
           <button
             onClick={onClose}
@@ -113,7 +138,7 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
               disabled={loading}
               className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl text-xs shadow-lg shadow-indigo-600/30 transition-all disabled:opacity-50"
             >
-              {loading ? 'Creating...' : 'Create Project'}
+              {loading ? 'Saving...' : isEditMode ? 'Save Changes' : 'Create Project'}
             </button>
           </div>
         </form>

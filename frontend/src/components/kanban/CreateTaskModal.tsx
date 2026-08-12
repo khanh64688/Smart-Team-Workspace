@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, PlusCircle } from 'lucide-react';
 import type { Task, TaskPriority, TaskStatus, User } from '../../types/api';
 import { api } from '../../lib/api';
@@ -6,7 +6,7 @@ import { api } from '../../lib/api';
 interface CreateTaskModalProps {
   isOpen: boolean;
   onClose: () => void;
-  projectId: number;
+  projectId: string;
   initialStatus: TaskStatus;
   members: User[];
   onTaskCreated: (task: Task) => void;
@@ -25,9 +25,14 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
   const [priority, setPriority] = useState<TaskPriority>('MEDIUM');
   const [status, setStatus] = useState<TaskStatus>(initialStatus);
   const [assigneeId, setAssigneeId] = useState<string>('');
-  const [deadline, setDeadline] = useState('');
+  const [dueDate, setDueDate] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Sync status when initialStatus changes (e.g. clicking + in a specific column)
+  useEffect(() => {
+    setStatus(initialStatus);
+  }, [initialStatus]);
 
   if (!isOpen) return null;
 
@@ -37,34 +42,35 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
     setError(null);
 
     try {
-      const res = await api.post<Task>('/tasks/', {
-        title,
-        description,
+      // Backend TaskCreate schema fields:
+      // project_id, title, description, priority, status, assignee_id, due_date (with timezone)
+      const payload: Record<string, unknown> = {
+        project_id: projectId,
+        title: title.trim(),
+        description: description.trim() || null,
         priority,
         status,
-        project_id: projectId,
-        assignee_id: assigneeId ? Number(assigneeId) : undefined,
-        deadline: deadline || undefined,
-      });
-      onTaskCreated(res.data);
-      onClose();
-    } catch (err: any) {
-      // Fallback mock task creation if backend API route for task is not yet mounted
-      const mockNewTask: Task = {
-        id: Math.floor(Math.random() * 1000) + 100,
-        title,
-        description,
-        status,
-        priority,
-        project_id: projectId,
-        assignee_id: assigneeId ? Number(assigneeId) : undefined,
-        assignee: members.find((m) => m.id === Number(assigneeId)),
-        deadline: deadline || undefined,
-        comments_count: 0,
-        created_at: new Date().toISOString(),
+        assignee_id: assigneeId || null,
       };
-      onTaskCreated(mockNewTask);
+
+      if (dueDate) {
+        // Append timezone to satisfy backend validator
+        payload.due_date = new Date(dueDate).toISOString();
+      }
+
+      const res = await api.post<Task>('/tasks', payload);
+      onTaskCreated(res.data);
+      // Reset form
+      setTitle('');
+      setDescription('');
+      setPriority('MEDIUM');
+      setAssigneeId('');
+      setDueDate('');
       onClose();
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: { detail?: string } } };
+      const detail = axiosErr?.response?.data?.detail;
+      setError(typeof detail === 'string' ? detail : 'Failed to create task. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -163,11 +169,11 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-gray-300 mb-1.5">Deadline</label>
+              <label className="block text-xs font-semibold text-gray-300 mb-1.5">Due Date</label>
               <input
                 type="date"
-                value={deadline}
-                onChange={(e) => setDeadline(e.target.value)}
+                value={dueDate}
+                onChange={(e) => setDueDate(e.target.value)}
                 className="w-full bg-gray-900/80 border border-gray-700/60 text-white rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:border-indigo-500"
               />
             </div>
@@ -184,7 +190,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
             <button
               type="submit"
               disabled={loading}
-              className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl text-xs shadow-lg shadow-indigo-600/30"
+              className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl text-xs shadow-lg shadow-indigo-600/30 disabled:opacity-60"
             >
               {loading ? 'Creating...' : 'Create Task'}
             </button>

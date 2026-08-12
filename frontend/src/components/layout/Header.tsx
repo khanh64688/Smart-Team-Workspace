@@ -9,7 +9,7 @@ interface HeaderProps {
   onSelectProject: (project: Project) => void;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
-  onSelectTask?: (taskId: number) => void;
+  onSelectTask?: (taskId: string) => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -28,7 +28,7 @@ export const Header: React.FC<HeaderProps> = ({
           <select
             value={selectedProject?.id || ''}
             onChange={(e) => {
-              const proj = projects.find((p) => p.id === Number(e.target.value));
+              const proj = projects.find((p) => p.id === e.target.value);
               if (proj) onSelectProject(proj);
             }}
             className="appearance-none bg-gray-900/80 border border-gray-700/60 text-white text-sm font-semibold rounded-xl px-4 py-2 pr-10 focus:outline-none focus:border-indigo-500 transition-colors cursor-pointer"
