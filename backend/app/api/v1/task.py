@@ -31,7 +31,7 @@ def list_tasks(
 
     return service.list_tasks(
         project_id=project_id,
-        current_user=current_user,
+        actor=current_user,
     )
 
 @router.get(
@@ -47,7 +47,7 @@ def get_task(
 
     return service.get(
         task_id=task_id,
-        current_user=current_user,
+        actor=current_user,
     )
 
 @router.post(
@@ -64,7 +64,7 @@ def create_task(
 
     return service.create(
         payload=payload,
-        current_user=current_user,
+        actor=current_user,
     )
 
 @router.put(
@@ -82,7 +82,7 @@ def update_task(
     return service.update(
         task_id=task_id,
         payload=payload,
-        current_user=current_user,
+        actor=current_user,
     )
 
 @router.patch(
@@ -100,7 +100,7 @@ def assign_task(
     return service.assign(
         task_id=task_id,
         payload=payload,
-        current_user=current_user,
+        actor=current_user,
     )
 
 @router.patch(
@@ -118,7 +118,7 @@ def move_task(
     return service.move(
         task_id=task_id,
         payload=payload,
-        current_user=current_user,
+        actor=current_user,
     )
 
 
@@ -135,7 +135,7 @@ def delete_task(
 
     service.delete(
         task_id=task_id,
-        current_user=current_user,
+        actor=current_user,
     )
 
     return None
