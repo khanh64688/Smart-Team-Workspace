@@ -31,7 +31,10 @@ from app.schemas.user import (
 from app.services import UserService
 
 
-router = APIRouter()
+router = APIRouter(
+    prefix="/users",
+    tags=["Users"],
+)
 
 
 AdminUser = Annotated[
