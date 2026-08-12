@@ -47,6 +47,7 @@ const AppContent: React.FC = () => {
   const [selectedProject, setSelectedProject] = useState<Project | null>(projects[0]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isAISummaryOpen, setIsAISummaryOpen] = useState(false);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -87,9 +88,14 @@ const AppContent: React.FC = () => {
       {/* Sidebar */}
       <Sidebar
         activeTab={activeTab}
-        setActiveTab={setActiveTab}
+        setActiveTab={(tab) => {
+          setActiveTab(tab);
+          setIsMobileSidebarOpen(false);
+        }}
         selectedProjectName={selectedProject?.name}
         onOpenAISummary={() => setIsAISummaryOpen(true)}
+        isMobileOpen={isMobileSidebarOpen}
+        onCloseMobile={() => setIsMobileSidebarOpen(false)}
       />
 
       {/* Main Content Area */}
@@ -102,9 +108,10 @@ const AppContent: React.FC = () => {
           }}
           searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}
+          onToggleMobileMenu={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
         />
 
-        <main className="flex-1 ml-64 overflow-y-auto">
+        <main className="flex-1 lg:ml-64 overflow-y-auto">
           {activeTab === 'projects' && (
             <ProjectsPage
               projects={projects}

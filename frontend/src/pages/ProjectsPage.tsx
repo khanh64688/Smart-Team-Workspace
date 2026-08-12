@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Users, Calendar, ArrowRight, FolderKanban } from 'lucide-react';
 import type { Project } from '../types/api';
 import { useAuth } from '../context/AuthContext';
 import { CreateProjectModal } from '../components/projects/CreateProjectModal';
 import { MemberManagementModal } from '../components/projects/MemberManagementModal';
+import { ProjectsSkeleton } from '../components/ui/Skeletons';
 
 interface ProjectsPageProps {
   projects: Project[];
@@ -17,9 +18,15 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({
   onRefreshProjects,
 }) => {
   const { user } = useAuth();
+  const [loading, setLoading] = useState<boolean>(true);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [selectedForMembers, setSelectedForMembers] = useState<Project | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
+
+  useEffect(() => {
+    const timer = setTimeout(() => setLoading(false), 300);
+    return () => clearTimeout(timer);
+  }, []);
 
   const filteredProjects = projects.filter((p) => {
     if (statusFilter === 'ALL') return true;
@@ -66,7 +73,9 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({
       </div>
 
       {/* Projects Grid */}
-      {filteredProjects.length === 0 ? (
+      {loading ? (
+        <ProjectsSkeleton />
+      ) : filteredProjects.length === 0 ? (
         <div className="glass-panel p-12 rounded-3xl text-center border border-gray-800/80 my-8">
           <FolderKanban className="w-12 h-12 text-indigo-400 mx-auto mb-3 opacity-60" />
           <h3 className="text-lg font-bold text-white">No Projects Found</h3>

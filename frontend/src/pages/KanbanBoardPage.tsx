@@ -16,6 +16,8 @@ import { KanbanColumn } from '../components/kanban/KanbanColumn';
 import { KanbanCard } from '../components/kanban/KanbanCard';
 import { TaskDetailModal } from '../components/kanban/TaskDetailModal';
 import { CreateTaskModal } from '../components/kanban/CreateTaskModal';
+import { KanbanSkeleton } from '../components/ui/Skeletons';
+import { Toast, type ToastType } from '../components/ui/Toast';
 import { Filter, Plus, Sparkles } from 'lucide-react';
 import { api } from '../lib/api';
 
@@ -30,6 +32,8 @@ export const KanbanBoardPage: React.FC<KanbanBoardPageProps> = ({
   searchQuery,
   onOpenAISummary,
 }) => {
+  const [loading, setLoading] = useState<boolean>(true);
+  const [toast, setToast] = useState<{ type: ToastType; title: string; message?: string } | null>(null);
   const [tasks, setTasks] = useState<Task[]>([
     { id: 1, title: 'Thiết kế ERD cho toàn hệ thống', status: 'DONE', priority: 'HIGH', project_id: 1, comments_count: 3, created_at: new Date().toISOString() },
     { id: 2, title: 'Dựng skeleton FastAPI + Docker Compose', status: 'DONE', priority: 'HIGH', project_id: 1, comments_count: 1, created_at: new Date().toISOString() },
@@ -50,6 +54,12 @@ export const KanbanBoardPage: React.FC<KanbanBoardPageProps> = ({
   const [priorityFilter, setPriorityFilter] = useState<string>('ALL');
   const [overdueOnly, setOverdueOnly] = useState<boolean>(false);
   const [projectMembers, setProjectMembers] = useState<User[]>([]);
+
+  useEffect(() => {
+    // Simulate brief initial load for skeleton animation
+    const timer = setTimeout(() => setLoading(false), 400);
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     if (project) {
@@ -200,29 +210,58 @@ export const KanbanBoardPage: React.FC<KanbanBoardPageProps> = ({
       </div>
 
       {/* Kanban Drag and Drop Context */}
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCorners}
-        onDragStart={handleDragStart}
-        onDragEnd={handleDragEnd}
-      >
-        <div className="flex gap-6 overflow-x-auto pb-6">
-          {columns.map((col) => (
-            <KanbanColumn
-              key={col.id}
-              id={col.id}
-              title={col.title}
-              tasks={filteredTasks.filter((t) => t.status === col.id)}
-              onTaskClick={(task) => setSelectedTaskDetail(task)}
-              onAddTask={(status) => setCreateModalStatus(status)}
-            />
-          ))}
+      {loading ? (
+        <KanbanSkeleton />
+      ) : filteredTasks.length === 0 ? (
+        <div className="glass-panel p-12 rounded-3xl text-center border border-gray-800/80 my-6">
+          <Filter className="w-12 h-12 text-indigo-400 mx-auto mb-3 opacity-60" />
+          <h3 className="text-lg font-bold text-white">No Matching Tasks Found</h3>
+          <p className="text-xs text-gray-400 max-w-md mx-auto mt-1 mb-6">
+            No tasks match the active priority, overdue, or search criteria. Try clearing your filters or add a new task.
+          </p>
+          <div className="flex justify-center gap-3">
+            <button
+              onClick={() => {
+                setPriorityFilter('ALL');
+                setOverdueOnly(false);
+              }}
+              className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-200 rounded-xl text-xs font-semibold"
+            >
+              Clear Filters
+            </button>
+            <button
+              onClick={() => setCreateModalStatus('TODO')}
+              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold"
+            >
+              Add Task
+            </button>
+          </div>
         </div>
+      ) : (
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCorners}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+        >
+          <div className="flex gap-6 overflow-x-auto pb-6">
+            {columns.map((col) => (
+              <KanbanColumn
+                key={col.id}
+                id={col.id}
+                title={col.title}
+                tasks={filteredTasks.filter((t) => t.status === col.id)}
+                onTaskClick={(task) => setSelectedTaskDetail(task)}
+                onAddTask={(status) => setCreateModalStatus(status)}
+              />
+            ))}
+          </div>
 
-        <DragOverlay>
-          {activeTask ? <KanbanCard task={activeTask} onClick={() => {}} /> : null}
-        </DragOverlay>
-      </DndContext>
+          <DragOverlay>
+            {activeTask ? <KanbanCard task={activeTask} onClick={() => {}} /> : null}
+          </DragOverlay>
+        </DndContext>
+      )}
 
       {/* Task Detail Modal */}
       <TaskDetailModal
@@ -233,9 +272,11 @@ export const KanbanBoardPage: React.FC<KanbanBoardPageProps> = ({
         onTaskUpdated={(updated) => {
           setTasks((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
           setSelectedTaskDetail(updated);
+          setToast({ type: 'success', title: 'Task Updated', message: 'Task changes saved successfully.' });
         }}
         onTaskDeleted={(id) => {
           setTasks((prev) => prev.filter((t) => t.id !== id));
+          setToast({ type: 'info', title: 'Task Removed', message: 'Task deleted from board.' });
         }}
       />
 
@@ -249,7 +290,18 @@ export const KanbanBoardPage: React.FC<KanbanBoardPageProps> = ({
           members={projectMembers}
           onTaskCreated={(newTask) => {
             setTasks((prev) => [newTask, ...prev]);
+            setToast({ type: 'success', title: 'Task Created', message: `Added "${newTask.title}" to board.` });
           }}
+        />
+      )}
+
+      {/* Toast Notification */}
+      {toast && (
+        <Toast
+          type={toast.type}
+          title={toast.title}
+          message={toast.message}
+          onClose={() => setToast(null)}
         />
       )}
     </div>

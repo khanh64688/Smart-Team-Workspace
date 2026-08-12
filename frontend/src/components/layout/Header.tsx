@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, ChevronDown } from 'lucide-react';
+import { Search, ChevronDown, Menu } from 'lucide-react';
 import { NotificationDrawer } from '../notifications/NotificationDrawer';
 import type { Project } from '../../types/api';
 
@@ -10,6 +10,7 @@ interface HeaderProps {
   searchQuery: string;
   setSearchQuery: (query: string) => void;
   onSelectTask?: (taskId: number) => void;
+  onToggleMobileMenu?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -19,11 +20,20 @@ export const Header: React.FC<HeaderProps> = ({
   searchQuery,
   setSearchQuery,
   onSelectTask,
+  onToggleMobileMenu,
 }) => {
   return (
-    <header className="h-16 glass-panel border-b border-gray-800/60 sticky top-0 z-20 flex items-center justify-between px-6 ml-64">
-      {/* Project selector dropdown */}
-      <div className="flex items-center gap-4">
+    <header className="h-16 glass-panel border-b border-gray-800/60 sticky top-0 z-20 flex items-center justify-between px-4 sm:px-6 lg:ml-64">
+      {/* Left controls: Mobile menu toggle & Project selector */}
+      <div className="flex items-center gap-3">
+        <button
+          onClick={onToggleMobileMenu}
+          className="lg:hidden p-2 text-gray-400 hover:text-white hover:bg-gray-800/60 rounded-xl transition-colors"
+          title="Open menu"
+        >
+          <Menu className="w-5 h-5" />
+        </button>
+
         <div className="relative">
           <select
             value={selectedProject?.id || ''}

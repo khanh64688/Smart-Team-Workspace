@@ -15,13 +15,17 @@ interface SidebarProps {
   setActiveTab: (tab: string) => void;
   selectedProjectName?: string;
   onOpenAISummary: () => void;
+  isMobileOpen?: boolean;
+  onCloseMobile?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
   activeTab,
   setActiveTab,
   selectedProjectName,
-  onOpenAISummary
+  onOpenAISummary,
+  isMobileOpen,
+  onCloseMobile,
 }) => {
   const { user, logout } = useAuth();
 
@@ -33,7 +37,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
   ];
 
   return (
-    <aside className="w-64 glass-panel border-r border-gray-800/60 h-screen flex flex-col justify-between p-4 fixed left-0 top-0 z-30">
+    <>
+      {/* Mobile Backdrop */}
+      {isMobileOpen && (
+        <div
+          onClick={onCloseMobile}
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden"
+        ></div>
+      )}
+
+      <aside
+        className={`w-64 glass-panel border-r border-gray-800/60 h-screen flex flex-col justify-between p-4 fixed left-0 top-0 z-50 transition-transform duration-300 ${
+          isMobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+        }`}
+      >
       <div>
         {/* Brand Header */}
         <div className="flex items-center gap-3 px-3 py-3 mb-6">
@@ -116,5 +133,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
       </div>
     </aside>
-  );
+  </>
+);
 };

@@ -15,6 +15,8 @@ import { CheckCircle2, Clock, AlertTriangle, ListTodo, Sparkles } from 'lucide-r
 import type { Project, DashboardMetrics } from '../types/api';
 import { api } from '../lib/api';
 
+import { DashboardSkeleton } from '../components/ui/Skeletons';
+
 interface DashboardPageProps {
   project: Project | null;
   onOpenAISummary: () => void;
@@ -28,6 +30,7 @@ const STATUS_COLORS = {
 };
 
 export const DashboardPage: React.FC<DashboardPageProps> = ({ project, onOpenAISummary }) => {
+  const [loading, setLoading] = useState<boolean>(true);
   const [metrics, setMetrics] = useState<DashboardMetrics>({
     total_tasks: 26,
     in_progress_tasks: 8,
@@ -42,6 +45,11 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ project, onOpenAIS
       { user_id: 7, user_name: 'Vũ Tiến Dũng', count: 5 },
     ],
   });
+
+  useEffect(() => {
+    const timer = setTimeout(() => setLoading(false), 350);
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     if (project) {
@@ -93,7 +101,11 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ project, onOpenAIS
         </button>
       </div>
 
-      {/* Top Stat Cards */}
+      {loading ? (
+        <DashboardSkeleton />
+      ) : (
+        <>
+          {/* Top Stat Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <div className="glass-panel p-5 rounded-3xl border border-gray-800/80 flex items-center justify-between">
           <div>
@@ -206,6 +218,8 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ project, onOpenAIS
           ))}
         </div>
       </div>
+    </>
+  )}
     </div>
   );
 };
