@@ -21,7 +21,7 @@ from app.schemas.task import (
 
 from app.services.project import ProjectService
 
-
+MAX_TASKS_PER_PROJECT = 100
 class TaskService:
     def __init__(self, db: Session):
         self.db = db
@@ -86,10 +86,33 @@ class TaskService:
 
         return membership
 
+    # def list_tasks(
+    #     self,
+    #     project_id: uuid.UUID,
+    #     actor: User,
+    # ) -> list[Task]:
+
+    #     self.project_service.require_member(
+    #         project_id,
+    #         actor,
+    #     )
+
+    #     return self.repo.list_by_project(
+    #         project_id,
+    #     )
+
     def list_tasks(
         self,
         project_id: uuid.UUID,
         actor: User,
+        q: str | None = None,
+        status: str | None = None,
+        priority: str | None = None,
+        assignee_id: uuid.UUID | None = None,
+        sprint_id: uuid.UUID | None = None,
+        overdue: bool = False,
+        page: int = 1,
+        size: int = 20,
     ) -> list[Task]:
 
         self.project_service.require_member(
@@ -97,8 +120,18 @@ class TaskService:
             actor,
         )
 
+        offset = (page - 1) * size
+
         return self.repo.list_by_project(
-            project_id,
+            project_id=project_id,
+            q=q,
+            status=status,
+            priority=priority,
+            assignee_id=assignee_id,
+            sprint_id=sprint_id,
+            overdue=overdue,
+            offset=offset,
+            limit=size,
         )
 
     def get(
@@ -116,6 +149,8 @@ class TaskService:
 
         return task
 
+
+
     def create(
         self,
         payload: TaskCreate,
@@ -127,6 +162,19 @@ class TaskService:
             actor,
         )
 
+        task_count = self.repo.count_by_project(
+            payload.project_id
+        )
+
+        if task_count >= MAX_TASKS_PER_PROJECT:
+            raise api_error(
+                409,
+                "TASK_LIMIT_REACHED",
+                (
+                    f"Project chỉ được phép có tối đa "
+                    f"{MAX_TASKS_PER_PROJECT} task."
+                ),
+            )
 
         assignee_id = payload.assignee_id
 

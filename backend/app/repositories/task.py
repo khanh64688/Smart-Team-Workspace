@@ -1,7 +1,9 @@
 import uuid
 
-from sqlalchemy import select
+from sqlalchemy import select, or_
 from sqlalchemy.orm import Session
+from datetime import datetime, timezone
+from sqlalchemy import func, select
 
 from app.models.sprint import Sprint
 from app.models.task import Task
@@ -21,24 +23,113 @@ class TaskRepository:
             )
         )
 
+    # def list_by_project(
+    #     self,
+    #     project_id: uuid.UUID,
+    # ) -> list[Task]:
+    #     stmt = (
+    #         select(Task)
+    #         .where(
+    #             Task.project_id == project_id,
+    #         )
+    #         .order_by(
+    #             Task.position,
+    #             Task.created_at,
+    #         )
+    #     )
+
+    #     return list(
+    #         self.db.scalars(stmt).all()
+    #     )
+
     def list_by_project(
         self,
         project_id: uuid.UUID,
+        q: str | None = None,
+        status: str | None = None,
+        priority: str | None = None,
+        assignee_id: uuid.UUID | None = None,
+        sprint_id: uuid.UUID | None = None,
+        overdue: bool = False,
+        offset: int = 0,
+        limit: int = 20,
     ) -> list[Task]:
-        stmt = (
-            select(Task)
-            .where(
+
+        query = (
+            self.db.query(Task)
+            .filter(
                 Task.project_id == project_id,
-            )
-            .order_by(
-                Task.position,
-                Task.created_at,
             )
         )
 
-        return list(
-            self.db.scalars(stmt).all()
+        # Search
+        if q:
+            keyword = f"%{q.strip()}%"
+
+            query = query.filter(
+                or_(
+                    Task.title.ilike(keyword),
+                    Task.description.ilike(keyword),
+                )
+            )
+
+        # Status
+        if status:
+            query = query.filter(
+                Task.status == status,
+            )
+
+        # Priority
+        if priority:
+            query = query.filter(
+                Task.priority == priority,
+            )
+
+        # Assignee
+        if assignee_id:
+            query = query.filter(
+                Task.assignee_id == assignee_id,
+            )
+
+        # Sprint
+        if sprint_id:
+            query = query.filter(
+                Task.sprint_id == sprint_id,
+            )
+
+        # Overdue
+        if overdue:
+            now = datetime.now(timezone.utc)
+
+            query = query.filter(
+                Task.due_date.is_not(None),
+                Task.due_date < now,
+                Task.status != "DONE",
+            )
+
+        return (
+            query
+            .order_by(
+                Task.position.asc(),
+                Task.created_at.desc(),
+            )
+            .offset(offset)
+            .limit(limit)
+            .all()
         )
+
+
+    def count_by_project(
+        self,
+        project_id: uuid.UUID,
+    ) -> int:
+        statement = (
+            select(func.count())
+            .select_from(Task)
+            .where(Task.project_id == project_id)
+        )
+
+        return self.db.scalar(statement) or 0
 
     def create(
         self,
