@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { ToastProvider } from './components/ui/Toast';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { Sidebar } from './components/layout/Sidebar';
@@ -15,14 +16,17 @@ const AppContent: React.FC = () => {
   const { user, loading } = useAuth();
   const [authView, setAuthView] = useState<'login' | 'register'>('login');
   const [activeTab, setActiveTab] = useState<string>('projects');
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
-  // --- Projects state (lifted up) ---
+  // --- Projects state ---
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [isProjectsLoading, setIsProjectsLoading] = useState<boolean>(false);
 
-  // --- Tasks state (lifted up so it persists across tab switches) ---
+  // --- Tasks state ---
   const [tasks, setTasks] = useState<Task[]>([]);
   const [tasksProjectId, setTasksProjectId] = useState<string | null>(null);
+  const [isTasksLoading, setIsTasksLoading] = useState<boolean>(false);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [isAISummaryOpen, setIsAISummaryOpen] = useState(false);
@@ -32,7 +36,7 @@ const AppContent: React.FC = () => {
     if (user) {
       setTasks([]);
       setTasksProjectId(null);
-      fetchProjects(true); // Reset project selection when user changes
+      fetchProjects(true);
     } else {
       setProjects([]);
       setSelectedProject(null);
@@ -49,8 +53,8 @@ const AppContent: React.FC = () => {
   }, [selectedProject]);
 
   const fetchProjects = useCallback(async (shouldResetSelection = false) => {
+    setIsProjectsLoading(true);
     try {
-      // API returns { data: Project[], meta: { page, size, total } }
       const res = await api.get<{ data: Project[]; meta: { total: number } }>('/projects');
       const list = res.data?.data ?? [];
       setProjects(list);
@@ -61,12 +65,14 @@ const AppContent: React.FC = () => {
       }
     } catch (err) {
       console.error('Failed to fetch projects:', err);
+    } finally {
+      setIsProjectsLoading(false);
     }
   }, []);
 
   const fetchTasks = useCallback(async (projectId: string) => {
+    setIsTasksLoading(true);
     try {
-      // Backend: GET /tasks?project_id=<uuid>
       const res = await api.get<Task[]>('/tasks', { params: { project_id: projectId } });
       const list = Array.isArray(res.data) ? res.data : [];
       setTasks(list);
@@ -75,12 +81,13 @@ const AppContent: React.FC = () => {
       console.error('Failed to fetch tasks:', err);
       setTasks([]);
       setTasksProjectId(projectId);
+    } finally {
+      setIsTasksLoading(false);
     }
   }, []);
 
   const handleSelectProject = useCallback((proj: Project) => {
     setSelectedProject(proj);
-    // Immediately clear stale tasks from old project
     if (proj.id !== tasksProjectId) {
       setTasks([]);
       setTasksProjectId(null);
@@ -110,6 +117,8 @@ const AppContent: React.FC = () => {
         setActiveTab={setActiveTab}
         selectedProjectName={selectedProject?.name}
         onOpenAISummary={() => setIsAISummaryOpen(true)}
+        isMobileOpen={isMobileSidebarOpen}
+        onCloseMobile={() => setIsMobileSidebarOpen(false)}
       />
 
       <div className="flex-1 flex flex-col min-w-0">
@@ -119,12 +128,14 @@ const AppContent: React.FC = () => {
           onSelectProject={handleSelectProject}
           searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}
+          onToggleMobileSidebar={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
         />
 
-        <main className="flex-1 ml-64 overflow-y-auto">
+        <main className="flex-1 ml-0 lg:ml-64 overflow-y-auto transition-all duration-300">
           {activeTab === 'projects' && (
             <ProjectsPage
               projects={projects}
+              loading={isProjectsLoading}
               onSelectProject={(proj) => {
                 handleSelectProject(proj);
                 setActiveTab('kanban');
@@ -137,16 +148,19 @@ const AppContent: React.FC = () => {
             <KanbanBoardPage
               project={selectedProject}
               tasks={tasks}
+              loading={isTasksLoading}
               searchQuery={searchQuery}
               onOpenAISummary={() => setIsAISummaryOpen(true)}
               onTasksChange={setTasks}
               onRefreshTasks={() => selectedProject && fetchTasks(selectedProject.id)}
+              onGoToProjects={() => setActiveTab('projects')}
             />
           )}
 
           {activeTab === 'dashboard' && (
             <DashboardPage
               tasks={tasks}
+              loading={isTasksLoading}
               onOpenAISummary={() => setIsAISummaryOpen(true)}
             />
           )}
@@ -177,8 +191,8 @@ const AdminPanel: React.FC = () => {
   }, []);
 
   return (
-    <div className="p-8">
-      <h1 className="text-2xl font-bold text-white mb-2">User Administration</h1>
+    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
+      <h1 className="text-xl sm:text-2xl font-bold text-white mb-2">User Administration</h1>
       <p className="text-xs text-gray-400 mb-6">System Admin Panel — Manage system users & account status</p>
       <div className="glass-panel p-6 rounded-3xl border border-gray-800">
         <div className="flex items-center justify-between mb-4">
@@ -211,7 +225,10 @@ const AdminPanel: React.FC = () => {
 export default function App() {
   return (
     <AuthProvider>
-      <AppContent />
+      <ToastProvider>
+        <AppContent />
+      </ToastProvider>
     </AuthProvider>
   );
 }
+

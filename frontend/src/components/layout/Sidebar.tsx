@@ -7,7 +7,8 @@ import {
   Sparkles, 
   LogOut,
   Layers,
-  Settings
+  Settings,
+  X
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { ProfileModal } from './ProfileModal';
@@ -17,13 +18,17 @@ interface SidebarProps {
   setActiveTab: (tab: string) => void;
   selectedProjectName?: string;
   onOpenAISummary: () => void;
+  isMobileOpen?: boolean;
+  onCloseMobile?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
   activeTab,
   setActiveTab,
   selectedProjectName,
-  onOpenAISummary
+  onOpenAISummary,
+  isMobileOpen = false,
+  onCloseMobile
 }) => {
   const { user, logout } = useAuth();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -35,19 +40,48 @@ export const Sidebar: React.FC<SidebarProps> = ({
     ...(user?.role === 'ADMIN' ? [{ id: 'admin', label: 'User Admin', icon: Users }] : []),
   ];
 
+  const handleNavClick = (tabId: string) => {
+    setActiveTab(tabId);
+    if (onCloseMobile) onCloseMobile();
+  };
+
   return (
     <>
-      <aside className="w-64 glass-panel border-r border-gray-800/60 h-screen flex flex-col justify-between p-4 fixed left-0 top-0 z-30">
+      {/* Mobile Backdrop Overlay */}
+      {isMobileOpen && (
+        <div
+          onClick={onCloseMobile}
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-30 lg:hidden animate-in fade-in duration-200"
+        />
+      )}
+
+      <aside
+        className={`w-64 glass-panel border-r border-gray-800/60 h-screen flex flex-col justify-between p-4 fixed left-0 top-0 z-40 transition-transform duration-300 ${
+          isMobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+        }`}
+      >
         <div>
           {/* Brand Header */}
-          <div className="flex items-center gap-3 px-3 py-3 mb-6">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/30">
-              <Layers className="w-6 h-6 text-white" />
+          <div className="flex items-center justify-between px-3 py-3 mb-6">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/30">
+                <Layers className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h1 className="font-bold text-lg text-white leading-tight">Smart Workspace</h1>
+                <span className="text-xs text-indigo-400 font-medium">Agile & AI Workspace</span>
+              </div>
             </div>
-            <div>
-              <h1 className="font-bold text-lg text-white leading-tight">Smart Workspace</h1>
-              <span className="text-xs text-indigo-400 font-medium">Agile & AI Workspace</span>
-            </div>
+
+            {/* Mobile close button */}
+            {onCloseMobile && (
+              <button
+                onClick={onCloseMobile}
+                className="lg:hidden p-1 text-gray-400 hover:text-white rounded-lg hover:bg-gray-800/60"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            )}
           </div>
 
           {/* Selected Active Context */}
@@ -66,7 +100,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               return (
                 <button
                   key={item.id}
-                  onClick={() => setActiveTab(item.id)}
+                  onClick={() => handleNavClick(item.id)}
                   className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
                     isActive
                       ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
@@ -89,7 +123,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
             <p className="text-xs text-gray-300 mb-3">Instant Sprint summary, blocker breakdown & risks.</p>
             <button
-              onClick={onOpenAISummary}
+              onClick={() => {
+                onOpenAISummary();
+                if (onCloseMobile) onCloseMobile();
+              }}
               className="w-full py-2 px-3 bg-gradient-to-r from-amber-500 to-indigo-600 hover:from-amber-600 hover:to-indigo-700 text-white rounded-lg text-xs font-semibold shadow-md flex items-center justify-center gap-1.5 transition-all"
             >
               <Sparkles className="w-3.5 h-3.5" />
@@ -132,3 +169,4 @@ export const Sidebar: React.FC<SidebarProps> = ({
     </>
   );
 };
+
