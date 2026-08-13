@@ -152,3 +152,52 @@ class UserActiveUpdateRequest(StrictRequest):
     """
 
     is_active: bool
+
+
+class AdminUserCreateRequest(StrictRequest):
+    """
+    ADMIN tạo tài khoản mới.
+
+    Khác với đăng ký thông thường:
+    - ADMIN được chọn role ban đầu.
+    - ADMIN được chọn trạng thái active ban đầu.
+    """
+
+    email: EmailStr
+
+    full_name: str = Field(
+        min_length=1,
+        max_length=255,
+    )
+
+    password: str = Field(
+        min_length=8,
+        max_length=128,
+    )
+
+    role: UserRole = UserRole.MEMBER
+
+    is_active: bool = True
+
+    @field_validator("full_name", mode="before")
+    @classmethod
+    def normalize_full_name(cls, value: Any) -> Any:
+        if isinstance(value, str):
+            return value.strip()
+
+        return value
+
+    @field_validator("password")
+    @classmethod
+    def validate_password(cls, value: str) -> str:
+        if not any(character.isalpha() for character in value):
+            raise ValueError(
+                "Mật khẩu phải có ít nhất một chữ cái."
+            )
+
+        if not any(character.isdigit() for character in value):
+            raise ValueError(
+                "Mật khẩu phải có ít nhất một chữ số."
+            )
+
+        return value
