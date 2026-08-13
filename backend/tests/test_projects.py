@@ -8,7 +8,7 @@ def create_project(client, user, name="Project Alpha"):
 def test_auth_required(client):
     response = client.get("/api/v1/projects")
     assert response.status_code == 401
-    assert response.json()["error"]["code"] == "UNAUTHENTICATED"
+    assert response.json()["error"]["code"] == "AUTH_UNAUTHORIZED"
 
 
 def test_member_cannot_create_project(client, users):
@@ -45,7 +45,7 @@ def test_list_is_scoped_searchable_and_paginated(client, users):
 
 def test_duplicate_member_returns_409(client, users):
     project_id = create_project(client, users["pm"]).json()["id"]
-    payload = {"user_id": users["member"].id, "project_role": "MEMBER"}
+    payload = {"user_id": str(users["member"].id), "project_role": "MEMBER"}
     assert client.post(f"/api/v1/projects/{project_id}/members", json=payload, headers=auth(users["pm"])).status_code == 201
     duplicate = client.post(f"/api/v1/projects/{project_id}/members", json=payload, headers=auth(users["pm"]))
     assert duplicate.status_code == 409
@@ -60,7 +60,7 @@ def test_last_owner_cannot_leave_or_be_removed(client, users):
 
 def test_only_owner_can_close(client, users):
     project_id = create_project(client, users["pm"]).json()["id"]
-    client.post(f"/api/v1/projects/{project_id}/members", json={"user_id": users["member"].id, "project_role": "MEMBER"}, headers=auth(users["pm"]))
+    client.post(f"/api/v1/projects/{project_id}/members", json={"user_id": str(users["member"].id), "project_role": "MEMBER"}, headers=auth(users["pm"]))
     denied = client.patch(f"/api/v1/projects/{project_id}/close", headers=auth(users["member"]))
     assert denied.status_code == 403
     closed = client.patch(f"/api/v1/projects/{project_id}/close", headers=auth(users["pm"]))

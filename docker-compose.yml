@@ -22,7 +22,7 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-twl}:${POSTGRES_PASSWORD:-twlpass}@db:5432/${POSTGRES_DB:-smart_team_db}
+      - DATABASE_URL=postgresql+psycopg://${POSTGRES_USER:-twl}:${POSTGRES_PASSWORD:-twlpass}@db:5432/${POSTGRES_DB:-smart_team_db}
       - SECRET_KEY=${SECRET_KEY:-dev_secret_key_change_me_in_production}
       - AI_API_KEY=${AI_API_KEY:-}
       - AI_PROVIDER=${AI_PROVIDER:-gemini}

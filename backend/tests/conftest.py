@@ -27,9 +27,39 @@ def db():
 
 @pytest.fixture()
 def client(db):
+    from app.core.deps import get_current_user
+    from fastapi import Request
+    from app.core.exceptions import UnauthorizedError
+    from app.repositories import UserRepository
+    import uuid
+
     def override_db():
         yield db
+
+    def override_get_current_user(request: Request):
+        user_id = request.headers.get("X-User-Id")
+        if not user_id:
+            raise UnauthorizedError(
+                code="AUTH_UNAUTHORIZED",
+                message="Chưa đăng nhập hoặc thiếu Bearer token.",
+            )
+        try:
+            uuid_obj = uuid.UUID(user_id)
+        except ValueError:
+            raise UnauthorizedError(
+                code="AUTH_INVALID_TOKEN",
+                message="Token không hợp lệ hoặc đã hết hạn.",
+            )
+        user = UserRepository(db).get_by_id(uuid_obj)
+        if not user or not user.is_active:
+            raise UnauthorizedError(
+                code="AUTH_USER_INACTIVE",
+                message="Tài khoản không tồn tại hoặc đã bị khóa.",
+            )
+        return user
+
     app.dependency_overrides[get_db] = override_db
+    app.dependency_overrides[get_current_user] = override_get_current_user
     with TestClient(app) as test_client:
         yield test_client
     app.dependency_overrides.clear()
@@ -38,14 +68,15 @@ def client(db):
 @pytest.fixture()
 def users(db):
     records = {
-        "admin": User(email="admin@test.dev", full_name="Admin", role=SystemRole.ADMIN),
-        "pm": User(email="pm@test.dev", full_name="PM", role=SystemRole.PM),
-        "member": User(email="member@test.dev", full_name="Member", role=SystemRole.MEMBER),
-        "outsider": User(email="outside@test.dev", full_name="Outsider", role=SystemRole.MEMBER),
+        "admin": User(email="admin@test.dev", full_name="Admin", role=SystemRole.ADMIN, password_hash="mock_hash"),
+        "pm": User(email="pm@test.dev", full_name="PM", role=SystemRole.PM, password_hash="mock_hash"),
+        "member": User(email="member@test.dev", full_name="Member", role=SystemRole.MEMBER, password_hash="mock_hash"),
+        "outsider": User(email="outside@test.dev", full_name="Outsider", role=SystemRole.MEMBER, password_hash="mock_hash"),
     }
     db.add_all(records.values()); db.commit()
     return records
 
 
 def auth(user):
-    return {"X-User-Id": user.id}
+    return {"X-User-Id": str(user.id)}
+

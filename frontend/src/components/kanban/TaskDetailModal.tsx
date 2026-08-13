@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, MessageSquare, Send, AlertTriangle, Trash2 } from 'lucide-react';
 import type { Task, Comment, User, TaskStatus, TaskPriority } from '../../types/api';
 import { useAuth } from '../../context/AuthContext';
@@ -10,7 +10,7 @@ interface TaskDetailModalProps {
   task: Task | null;
   members: User[];
   onTaskUpdated: (updatedTask: Task) => void;
-  onTaskDeleted?: (taskId: number) => void;
+  onTaskDeleted?: (taskId: string) => void;
 }
 
 export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
@@ -23,24 +23,31 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
 }) => {
   const { user } = useAuth();
   const [commentText, setCommentText] = useState('');
-  const [comments, setComments] = useState<Comment[]>([
-    {
-      id: 1,
-      content: 'Đã hoàn thành thiết kế DB và push mã nguồn lên branch develop.',
-      user_id: 4,
-      user: { id: 4, email: 'an@twl.dev', full_name: 'Lê Thị An', role: 'MEMBER', is_active: true, created_at: '' },
-      task_id: task?.id || 1,
-      created_at: new Date(Date.now() - 1000 * 60 * 120).toISOString(),
-    },
-    {
-      id: 2,
-      content: 'Nhớ bổ sung index cho bảng product_category nhé!',
-      user_id: 2,
-      user: { id: 2, email: 'pm@twl.dev', full_name: 'Trần Minh Quản', role: 'PM', is_active: true, created_at: '' },
-      task_id: task?.id || 1,
-      created_at: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
-    },
-  ]);
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [commentsLoading, setCommentsLoading] = useState(false);
+  const [commentPosting, setCommentPosting] = useState(false);
+
+  // Fetch real comments when task changes
+  useEffect(() => {
+    if (isOpen && task) {
+      fetchComments();
+    } else {
+      setComments([]);
+    }
+  }, [task?.id, isOpen]);
+
+  const fetchComments = async () => {
+    if (!task) return;
+    setCommentsLoading(true);
+    try {
+      const res = await api.get<Comment[]>(`/tasks/${task.id}/comments`);
+      if (Array.isArray(res.data)) setComments(res.data);
+    } catch {
+      setComments([]); // Backend may not have this endpoint yet
+    } finally {
+      setCommentsLoading(false);
+    }
+  };
 
   if (!isOpen || !task) return null;
 
@@ -48,9 +55,10 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
     const updated = { ...task, status: newStatus };
     onTaskUpdated(updated);
     try {
-      await api.patch(`/tasks/${task.id}/move`, { status: newStatus });
+      const res = await api.patch<Task>(`/tasks/${task.id}/move`, { status: newStatus });
+      if (res.data) onTaskUpdated(res.data);
     } catch {
-      // Optimistic update retained
+      onTaskUpdated(task); // Rollback
     }
   };
 
@@ -58,48 +66,69 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
     const updated = { ...task, priority: newPriority };
     onTaskUpdated(updated);
     try {
-      await api.patch(`/tasks/${task.id}`, { priority: newPriority });
+      const res = await api.put<Task>(`/tasks/${task.id}`, { priority: newPriority });
+      if (res.data) onTaskUpdated(res.data);
     } catch {
-      // Optimistic update retained
+      onTaskUpdated(task); // Rollback
     }
   };
 
   const handleAssigneeChange = async (newAssigneeId: string) => {
-    const assigneeObj = members.find((m) => m.id === Number(newAssigneeId));
-    const updated = { ...task, assignee_id: newAssigneeId ? Number(newAssigneeId) : undefined, assignee: assigneeObj };
+    const assigneeObj = members.find((m) => m.id === newAssigneeId);
+    const updated = { ...task, assignee_id: newAssigneeId || undefined, assignee: assigneeObj };
     onTaskUpdated(updated);
     try {
-      await api.patch(`/tasks/${task.id}`, { assignee_id: newAssigneeId ? Number(newAssigneeId) : null });
+      const res = await api.patch<Task>(`/tasks/${task.id}/assign`, {
+        assignee_id: newAssigneeId || null,
+      });
+      if (res.data) onTaskUpdated(res.data);
     } catch {
-      // Optimistic update retained
+      onTaskUpdated(task); // Rollback
     }
   };
 
-  const handleAddComment = (e: React.FormEvent) => {
+  const handleAddComment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!commentText.trim() || !user) return;
+    if (!commentText.trim() || !user || commentPosting) return;
 
-    const newComment: Comment = {
-      id: Date.now(),
-      content: commentText,
-      user_id: user.id,
-      user: user,
-      task_id: task.id,
-      created_at: new Date().toISOString(),
-    };
-
-    setComments((prev) => [...prev, newComment]);
-    onTaskUpdated({ ...task, comments_count: (task.comments_count || 0) + 1 });
-    setCommentText('');
-
-    api.post(`/tasks/${task.id}/comments`, { content: commentText }).catch(() => {});
+    setCommentPosting(true);
+    try {
+      const res = await api.post<Comment>(`/tasks/${task.id}/comments`, {
+        content: commentText.trim(),
+      });
+      if (res.data) {
+        setComments((prev) => [...prev, res.data]);
+        onTaskUpdated({ ...task, comments_count: (task.comments_count || 0) + 1 });
+      }
+      setCommentText('');
+    } catch {
+      // Optimistically add comment locally if API not available yet
+      const optimistic: Comment = {
+        id: `local-${Date.now()}`,
+        content: commentText.trim(),
+        user_id: user.id,
+        user: user,
+        task_id: task.id,
+        created_at: new Date().toISOString(),
+      };
+      setComments((prev) => [...prev, optimistic]);
+      onTaskUpdated({ ...task, comments_count: (task.comments_count || 0) + 1 });
+      setCommentText('');
+    } finally {
+      setCommentPosting(false);
+    }
   };
 
-  const handleDeleteTask = () => {
+  const handleDeleteTask = async () => {
     if (!confirm('Are you sure you want to delete this task?')) return;
-    if (onTaskDeleted) onTaskDeleted(task.id);
-    onClose();
-    api.delete(`/tasks/${task.id}`).catch(() => {});
+    try {
+      await api.delete(`/tasks/${task.id}`);
+      if (onTaskDeleted) onTaskDeleted(task.id);
+      onClose();
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: { detail?: string } } };
+      alert(axiosErr?.response?.data?.detail || 'Failed to delete task.');
+    }
   };
 
   return (
@@ -110,7 +139,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
           <div>
             <div className="flex items-center gap-2 mb-2">
               <span className="text-[10px] font-bold text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-full uppercase">
-                Task-{task.id}
+                Task
               </span>
               {task.is_overdue && (
                 <span className="flex items-center gap-1 text-[10px] font-bold text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded-full">
@@ -186,6 +215,16 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
             </div>
           </div>
 
+          {/* Due Date */}
+          {task.due_date && (
+            <div className="flex items-center gap-2 text-xs text-gray-400">
+              <span className="font-semibold text-gray-300">Due:</span>
+              <span className={task.is_overdue ? 'text-rose-400 font-semibold' : ''}>
+                {new Date(task.due_date).toLocaleDateString()}
+              </span>
+            </div>
+          )}
+
           {/* Description */}
           <div>
             <h4 className="text-xs font-bold text-gray-300 uppercase tracking-wider mb-2">Description</h4>
@@ -203,24 +242,29 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
               </h4>
             </div>
 
-            {/* List */}
             <div className="space-y-3 mb-4 max-h-60 overflow-y-auto">
-              {comments.map((c) => (
-                <div key={c.id} className="p-3.5 rounded-2xl bg-gray-900/60 border border-gray-800/80">
-                  <div className="flex items-center justify-between mb-1.5">
-                    <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center text-[9px] font-bold text-white">
-                        {c.user?.full_name?.charAt(0) || 'U'}
+              {commentsLoading ? (
+                <p className="text-xs text-gray-500 italic">Loading comments...</p>
+              ) : comments.length === 0 ? (
+                <p className="text-xs text-gray-500 italic">No comments yet. Be the first to comment.</p>
+              ) : (
+                comments.map((c) => (
+                  <div key={c.id} className="p-3.5 rounded-2xl bg-gray-900/60 border border-gray-800/80">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center text-[9px] font-bold text-white">
+                          {c.user?.full_name?.charAt(0) || 'U'}
+                        </div>
+                        <span className="text-xs font-semibold text-white">{c.user?.full_name}</span>
                       </div>
-                      <span className="text-xs font-semibold text-white">{c.user?.full_name}</span>
+                      <span className="text-[10px] text-gray-500">
+                        {new Date(c.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
                     </div>
-                    <span className="text-[10px] text-gray-500">
-                      {new Date(c.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
+                    <p className="text-xs text-gray-300 pl-8 leading-relaxed">{c.content}</p>
                   </div>
-                  <p className="text-xs text-gray-300 pl-8 leading-relaxed">{c.content}</p>
-                </div>
-              ))}
+                ))
+              )}
             </div>
 
             {/* Comment Form */}
@@ -234,11 +278,11 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
               />
               <button
                 type="submit"
-                disabled={!commentText.trim()}
+                disabled={!commentText.trim() || commentPosting}
                 className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all disabled:opacity-50"
               >
                 <Send className="w-3.5 h-3.5" />
-                Post
+                {commentPosting ? '...' : 'Post'}
               </button>
             </form>
           </div>
