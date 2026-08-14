@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Calendar, CheckCircle, Trash2, Edit3 } from 'lucide-react';
 import { api } from '../../lib/api';
-import type { Sprint } from '../../types/api';
+import type { Sprint, SprintStatus } from '../../types/api';
 import { useToast } from '../../context/ToastContext';
 
 interface SprintModalProps {
@@ -24,6 +24,7 @@ export const SprintModal: React.FC<SprintModalProps> = ({
   const [goal, setGoal] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [status, setStatus] = useState<SprintStatus>('PLANNED');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -36,11 +37,13 @@ export const SprintModal: React.FC<SprintModalProps> = ({
         setGoal(sprint.goal || '');
         setStartDate(sprint.start_date ? sprint.start_date.substring(0, 10) : '');
         setEndDate(sprint.end_date ? sprint.end_date.substring(0, 10) : '');
+        setStatus(sprint.status || 'PLANNED');
       } else {
         setName('');
         setGoal('');
         setStartDate('');
         setEndDate('');
+        setStatus('PLANNED');
       }
       setError(null);
     }
@@ -48,37 +51,62 @@ export const SprintModal: React.FC<SprintModalProps> = ({
 
   if (!isOpen) return null;
 
+  const extractErrorMessage = (err: any): string => {
+    if (err.response?.data?.error?.message) {
+      return err.response.data.error.message;
+    }
+    if (err.response?.data?.error?.details?.errors?.[0]?.message) {
+      return err.response.data.error.details.errors[0].message;
+    }
+    if (typeof err.response?.data?.detail === 'string') {
+      return err.response.data.detail;
+    }
+    if (err.response?.data?.message) {
+      return err.response.data.message;
+    }
+    return `Không thể ${isEditMode ? 'cập nhật' : 'tạo'} Sprint. Vui lòng kiểm tra quyền quản lý (OWNER/MANAGER) hoặc ngày bắt đầu/kết thúc.`;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
 
+    // Client-side date check
+    if (new Date(endDate) <= new Date(startDate)) {
+      const dateErrMsg = 'Ngày kết thúc (End Date) phải diễn ra sau Ngày bắt đầu (Start Date).';
+      setError(dateErrMsg);
+      showError(dateErrMsg);
+      setLoading(false);
+      return;
+    }
+
     try {
+      const isoStartDate = new Date(startDate + 'T00:00:00Z').toISOString();
+      const isoEndDate = new Date(endDate + 'T23:59:59Z').toISOString();
+
       if (isEditMode && sprint) {
         await api.put(`/sprints/${sprint.id}`, {
           name: name.trim(),
           goal: goal.trim() || null,
-          start_date: startDate,
-          end_date: endDate,
+          start_date: isoStartDate,
+          end_date: isoEndDate,
         });
         showSuccess('Cập nhật thông tin Sprint thành công!');
       } else {
         await api.post(`/projects/${projectId}/sprints`, {
           name: name.trim(),
           goal: goal.trim() || null,
-          start_date: startDate,
-          end_date: endDate,
+          start_date: isoStartDate,
+          end_date: isoEndDate,
+          status,
         });
         showSuccess('Tạo Sprint mới thành công!');
       }
       onSuccess();
       onClose();
     } catch (err: any) {
-      const msg =
-        err.response?.data?.error?.message ||
-        (typeof err.response?.data?.detail === 'string' ? err.response.data.detail : null) ||
-        err.response?.data?.message ||
-        `Failed to ${isEditMode ? 'update' : 'create'} Sprint.`;
+      const msg = extractErrorMessage(err);
       setError(msg);
       showError(msg);
     } finally {
@@ -96,7 +124,7 @@ export const SprintModal: React.FC<SprintModalProps> = ({
       onSuccess();
       onClose();
     } catch (err: any) {
-      const msg = err.response?.data?.detail || 'Failed to close Sprint.';
+      const msg = extractErrorMessage(err);
       setError(msg);
       showError(msg);
     } finally {
@@ -114,7 +142,7 @@ export const SprintModal: React.FC<SprintModalProps> = ({
       onSuccess();
       onClose();
     } catch (err: any) {
-      const msg = err.response?.data?.detail || 'Failed to delete Sprint.';
+      const msg = extractErrorMessage(err);
       setError(msg);
       showError(msg);
     } finally {
@@ -168,6 +196,20 @@ export const SprintModal: React.FC<SprintModalProps> = ({
               className="w-full bg-gray-900/80 border border-gray-700/60 rounded-xl px-4 py-2.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500"
             />
           </div>
+
+          {!isEditMode && (
+            <div>
+              <label className="block text-xs font-semibold text-gray-300 mb-1.5">Initial Status</label>
+              <select
+                value={status}
+                onChange={(e) => setStatus(e.target.value as SprintStatus)}
+                className="w-full bg-gray-900/80 border border-gray-700/60 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
+              >
+                <option value="PLANNED">PLANNED (Lên kế hoạch)</option>
+                <option value="ACTIVE">ACTIVE (Kích hoạt ngay)</option>
+              </select>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-4">
             <div>
