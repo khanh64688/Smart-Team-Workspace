@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import { ToastProvider } from './components/ui/Toast';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { Sidebar } from './components/layout/Sidebar';
@@ -8,6 +7,7 @@ import { Header } from './components/layout/Header';
 import { ProjectsPage } from './pages/ProjectsPage';
 import { KanbanBoardPage } from './pages/KanbanBoardPage';
 import { DashboardPage } from './pages/DashboardPage';
+import { UserManagementPage } from './pages/UserManagementPage';
 import { AISprintSummaryModal } from './components/ai/AISprintSummaryModal';
 import type { Project, Task } from './types/api';
 import { api } from './lib/api';
@@ -16,17 +16,14 @@ const AppContent: React.FC = () => {
   const { user, loading } = useAuth();
   const [authView, setAuthView] = useState<'login' | 'register'>('login');
   const [activeTab, setActiveTab] = useState<string>('projects');
-  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
-  // --- Projects state ---
+  // --- Projects state (lifted up) ---
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
-  const [isProjectsLoading, setIsProjectsLoading] = useState<boolean>(false);
 
-  // --- Tasks state ---
+  // --- Tasks state (lifted up so it persists across tab switches) ---
   const [tasks, setTasks] = useState<Task[]>([]);
   const [tasksProjectId, setTasksProjectId] = useState<string | null>(null);
-  const [isTasksLoading, setIsTasksLoading] = useState<boolean>(false);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [isAISummaryOpen, setIsAISummaryOpen] = useState(false);
@@ -36,7 +33,7 @@ const AppContent: React.FC = () => {
     if (user) {
       setTasks([]);
       setTasksProjectId(null);
-      fetchProjects(true);
+      fetchProjects(true); // Reset project selection when user changes
     } else {
       setProjects([]);
       setSelectedProject(null);
@@ -53,8 +50,8 @@ const AppContent: React.FC = () => {
   }, [selectedProject]);
 
   const fetchProjects = useCallback(async (shouldResetSelection = false) => {
-    setIsProjectsLoading(true);
     try {
+      // API returns { data: Project[], meta: { page, size, total } }
       const res = await api.get<{ data: Project[]; meta: { total: number } }>('/projects');
       const list = res.data?.data ?? [];
       setProjects(list);
@@ -65,14 +62,12 @@ const AppContent: React.FC = () => {
       }
     } catch (err) {
       console.error('Failed to fetch projects:', err);
-    } finally {
-      setIsProjectsLoading(false);
     }
   }, []);
 
   const fetchTasks = useCallback(async (projectId: string) => {
-    setIsTasksLoading(true);
     try {
+      // Backend: GET /tasks?project_id=<uuid>
       const res = await api.get<Task[]>('/tasks', { params: { project_id: projectId } });
       const list = Array.isArray(res.data) ? res.data : [];
       setTasks(list);
@@ -81,13 +76,12 @@ const AppContent: React.FC = () => {
       console.error('Failed to fetch tasks:', err);
       setTasks([]);
       setTasksProjectId(projectId);
-    } finally {
-      setIsTasksLoading(false);
     }
   }, []);
 
   const handleSelectProject = useCallback((proj: Project) => {
     setSelectedProject(proj);
+    // Immediately clear stale tasks from old project
     if (proj.id !== tasksProjectId) {
       setTasks([]);
       setTasksProjectId(null);
@@ -117,8 +111,6 @@ const AppContent: React.FC = () => {
         setActiveTab={setActiveTab}
         selectedProjectName={selectedProject?.name}
         onOpenAISummary={() => setIsAISummaryOpen(true)}
-        isMobileOpen={isMobileSidebarOpen}
-        onCloseMobile={() => setIsMobileSidebarOpen(false)}
       />
 
       <div className="flex-1 flex flex-col min-w-0">
@@ -128,14 +120,12 @@ const AppContent: React.FC = () => {
           onSelectProject={handleSelectProject}
           searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}
-          onToggleMobileSidebar={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
         />
 
-        <main className="flex-1 ml-0 lg:ml-64 overflow-y-auto transition-all duration-300">
+        <main className="flex-1 ml-64 overflow-y-auto">
           {activeTab === 'projects' && (
             <ProjectsPage
               projects={projects}
-              loading={isProjectsLoading}
               onSelectProject={(proj) => {
                 handleSelectProject(proj);
                 setActiveTab('kanban');
@@ -148,25 +138,22 @@ const AppContent: React.FC = () => {
             <KanbanBoardPage
               project={selectedProject}
               tasks={tasks}
-              loading={isTasksLoading}
               searchQuery={searchQuery}
               onOpenAISummary={() => setIsAISummaryOpen(true)}
               onTasksChange={setTasks}
               onRefreshTasks={() => selectedProject && fetchTasks(selectedProject.id)}
-              onGoToProjects={() => setActiveTab('projects')}
             />
           )}
 
           {activeTab === 'dashboard' && (
             <DashboardPage
               tasks={tasks}
-              loading={isTasksLoading}
               onOpenAISummary={() => setIsAISummaryOpen(true)}
             />
           )}
 
           {activeTab === 'admin' && user.role === 'ADMIN' && (
-            <AdminPanel />
+            <UserManagementPage />
           )}
         </main>
       </div>
@@ -180,55 +167,14 @@ const AppContent: React.FC = () => {
   );
 };
 
-// Simple admin panel — fetches real users from API
-const AdminPanel: React.FC = () => {
-  const [users, setUsers] = useState<{ full_name: string; email: string; role: string; is_active: boolean }[]>([]);
-
-  useEffect(() => {
-    api.get<{ full_name: string; email: string; role: string; is_active: boolean }[]>('/users')
-      .then((res) => { if (Array.isArray(res.data)) setUsers(res.data); })
-      .catch(() => {});
-  }, []);
-
-  return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
-      <h1 className="text-xl sm:text-2xl font-bold text-white mb-2">User Administration</h1>
-      <p className="text-xs text-gray-400 mb-6">System Admin Panel — Manage system users & account status</p>
-      <div className="glass-panel p-6 rounded-3xl border border-gray-800">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-bold text-white">Registered Users</h3>
-          <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-indigo-500/20 text-indigo-400">
-            {users.length} Users
-          </span>
-        </div>
-        <div className="divide-y divide-gray-800/60">
-          {users.map((u, i) => (
-            <div key={i} className="py-3 flex items-center justify-between text-xs">
-              <div>
-                <p className="font-semibold text-white">{u.full_name}</p>
-                <p className="text-[11px] text-gray-400">{u.email}</p>
-              </div>
-              <div className="flex items-center gap-3">
-                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-950 text-indigo-300">{u.role}</span>
-                <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${u.is_active ? 'bg-emerald-500/20 text-emerald-400' : 'bg-gray-700/30 text-gray-400'}`}>
-                  {u.is_active ? 'ACTIVE' : 'INACTIVE'}
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-};
+import { ToastProvider } from './context/ToastContext';
 
 export default function App() {
   return (
-    <AuthProvider>
-      <ToastProvider>
+    <ToastProvider>
+      <AuthProvider>
         <AppContent />
-      </ToastProvider>
-    </AuthProvider>
+      </AuthProvider>
+    </ToastProvider>
   );
 }
-

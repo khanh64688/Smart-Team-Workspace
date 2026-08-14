@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { X, PlusCircle } from 'lucide-react';
-import type { Task, TaskPriority, TaskStatus, User } from '../../types/api';
+import type { Task, TaskPriority, TaskStatus, User, Sprint } from '../../types/api';
 import { api } from '../../lib/api';
+
+import { useToast } from '../../context/ToastContext';
 
 interface CreateTaskModalProps {
   isOpen: boolean;
@@ -9,6 +11,8 @@ interface CreateTaskModalProps {
   projectId: string;
   initialStatus: TaskStatus;
   members: User[];
+  sprints?: Sprint[];
+  currentSprintId?: string;
   onTaskCreated: (task: Task) => void;
 }
 
@@ -18,21 +22,33 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
   projectId,
   initialStatus,
   members,
+  sprints = [],
+  currentSprintId,
   onTaskCreated,
 }) => {
+  const { showSuccess } = useToast();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState<TaskPriority>('MEDIUM');
   const [status, setStatus] = useState<TaskStatus>(initialStatus);
   const [assigneeId, setAssigneeId] = useState<string>('');
+  const [sprintId, setSprintId] = useState<string>('');
   const [dueDate, setDueDate] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Sync status when initialStatus changes (e.g. clicking + in a specific column)
+  // Sync status and sprint when props change
   useEffect(() => {
     setStatus(initialStatus);
   }, [initialStatus]);
+
+  useEffect(() => {
+    if (currentSprintId && currentSprintId !== 'ALL') {
+      setSprintId(currentSprintId);
+    } else {
+      setSprintId('');
+    }
+  }, [currentSprintId, isOpen]);
 
   if (!isOpen) return null;
 
@@ -42,10 +58,9 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
     setError(null);
 
     try {
-      // Backend TaskCreate schema fields:
-      // project_id, title, description, priority, status, assignee_id, due_date (with timezone)
       const payload: Record<string, unknown> = {
         project_id: projectId,
+        sprint_id: sprintId || null,
         title: title.trim(),
         description: description.trim() || null,
         priority,
@@ -59,6 +74,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
       }
 
       const res = await api.post<Task>('/tasks', payload);
+      showSuccess('Tạo công việc mới thành công!');
       onTaskCreated(res.data);
       // Reset form
       setTitle('');
@@ -169,14 +185,30 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-gray-300 mb-1.5">Due Date</label>
-              <input
-                type="date"
-                value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
-                className="w-full bg-gray-900/80 border border-gray-700/60 text-white rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:border-indigo-500"
-              />
+              <label className="block text-xs font-semibold text-gray-300 mb-1.5">Target Sprint</label>
+              <select
+                value={sprintId}
+                onChange={(e) => setSprintId(e.target.value)}
+                className="w-full bg-gray-900/80 border border-gray-700/60 text-white rounded-xl px-3.5 py-2.5 text-xs focus:outline-none focus:border-indigo-500"
+              >
+                <option value="">No Sprint (Backlog)</option>
+                {sprints.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name} ({s.status})
+                  </option>
+                ))}
+              </select>
             </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-gray-300 mb-1.5">Due Date</label>
+            <input
+              type="date"
+              value={dueDate}
+              onChange={(e) => setDueDate(e.target.value)}
+              className="w-full bg-gray-900/80 border border-gray-700/60 text-white rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:border-indigo-500"
+            />
           </div>
 
           <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-800">

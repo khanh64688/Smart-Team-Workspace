@@ -3,13 +3,16 @@ import { X, User, KeyRound } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../lib/api';
 
+import { useToast } from '../../context/ToastContext';
+
 interface ProfileModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
 export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
-  const { user, updateUser, logout } = useAuth();
+  const { user, updateUser } = useAuth();
+  const { showSuccess, showError } = useToast();
 
   // Profile fields
   const [fullName, setFullName] = useState(user?.full_name || '');
@@ -39,9 +42,12 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
       });
       updateUser(res.data);
       setProfileSuccess(true);
+      showSuccess('Cập nhật hồ sơ cá nhân thành công!');
       setTimeout(() => setProfileSuccess(false), 3000);
     } catch (err: any) {
-      setProfileError(err.response?.data?.detail || 'Failed to update profile.');
+      const msg = err.response?.data?.detail || 'Failed to update profile.';
+      setProfileError(msg);
+      showError(msg);
     } finally {
       setProfileLoading(false);
     }
@@ -54,7 +60,9 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
     setPassSuccess(null);
 
     if (newPassword !== confirmPassword) {
-      setPassError('New passwords do not match.');
+      const msg = 'New passwords do not match.';
+      setPassError(msg);
+      showError(msg);
       setPassLoading(false);
       return;
     }
@@ -64,24 +72,17 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
         old_password: oldPassword,
         new_password: newPassword,
       });
-      setPassSuccess(res.data?.message || 'Password changed successfully! Logging out...');
+      const msg = res.data?.message || 'Password changed successfully!';
+      setPassSuccess(msg);
+      showSuccess(msg);
       // Clear fields
       setOldPassword('');
       setNewPassword('');
       setConfirmPassword('');
-
-      // Auto logout after password change as backend invalidates tokens
-      setTimeout(() => {
-        logout();
-      }, 2000);
     } catch (err: any) {
-      const detail = err.response?.data?.detail;
-      if (Array.isArray(detail)) {
-        const msgs = detail.map((d: any) => d.msg).join(', ');
-        setPassError(msgs);
-      } else {
-        setPassError(detail || 'Password change failed.');
-      }
+      const msg = err.response?.data?.detail || 'Failed to change password.';
+      setPassError(msg);
+      showError(msg);
     } finally {
       setPassLoading(false);
     }

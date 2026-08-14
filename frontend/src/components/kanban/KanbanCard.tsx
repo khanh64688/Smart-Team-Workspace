@@ -40,7 +40,12 @@ export const KanbanCard: React.FC<KanbanCardProps> = ({ task, onClick }) => {
       style={style}
       {...attributes}
       {...listeners}
-      onClick={onClick}
+      onClick={(e) => {
+        e.stopPropagation();
+        if (!isDragging) {
+          onClick();
+        }
+      }}
       className="glass-panel p-4 rounded-2xl border border-gray-800/80 hover:border-indigo-500/40 cursor-grab active:cursor-grabbing transition-all shadow-md group my-2.5 relative"
     >
       {/* Top Priority Badge & Overdue Indicator */}

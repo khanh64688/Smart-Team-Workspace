@@ -15,20 +15,30 @@ export const NotificationDrawer: React.FC<NotificationDrawerProps> = ({ onSelect
   const unreadCount = notifications.filter((n) => !n.is_read).length;
 
   useEffect(() => {
+    let active = true;
+    let timer: any = null;
+
     const fetchNotifications = async () => {
       try {
         const res = await api.get<Notification[]>('/notifications');
-        if (res.data && Array.isArray(res.data)) {
+        if (active && res.data && Array.isArray(res.data)) {
           setNotifications(res.data);
         }
-      } catch {
-        // Fallback to mock notifications if backend endpoint not yet deployed
+      } catch (err: any) {
+        if (err.response?.status === 404) {
+          // Endpoint not implemented in backend, stop polling
+          if (timer) clearInterval(timer);
+          return;
+        }
       }
     };
 
     fetchNotifications();
-    const interval = setInterval(fetchNotifications, 30000); // 30s polling per US-18
-    return () => clearInterval(interval);
+    timer = setInterval(fetchNotifications, 30000);
+    return () => {
+      active = false;
+      if (timer) clearInterval(timer);
+    };
   }, []);
 
   const markAllRead = () => {

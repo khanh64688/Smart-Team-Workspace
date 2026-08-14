@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { X, MessageSquare, Send, AlertTriangle, Trash2 } from 'lucide-react';
+import { X, MessageSquare, Send, AlertTriangle, Trash2, Edit3, Check } from 'lucide-react';
 import type { Task, Comment, User, TaskStatus, TaskPriority } from '../../types/api';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../lib/api';
+import { useToast } from '../../context/ToastContext';
 
 interface TaskDetailModalProps {
   isOpen: boolean;
@@ -22,10 +23,13 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   onTaskDeleted,
 }) => {
   const { user } = useAuth();
+  const { showSuccess, showError } = useToast();
   const [commentText, setCommentText] = useState('');
   const [comments, setComments] = useState<Comment[]>([]);
   const [commentsLoading, setCommentsLoading] = useState(false);
   const [commentPosting, setCommentPosting] = useState(false);
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+  const [editingCommentText, setEditingCommentText] = useState('');
 
   // Fetch real comments when task changes
   useEffect(() => {
@@ -57,8 +61,12 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
     try {
       const res = await api.patch<Task>(`/tasks/${task.id}/move`, { status: newStatus });
       if (res.data) onTaskUpdated(res.data);
-    } catch {
+      showSuccess('Cập nhật trạng thái công việc thành công!');
+    } catch (err: any) {
       onTaskUpdated(task); // Rollback
+      const detail = err.response?.data?.detail;
+      const message = typeof detail === 'string' ? detail : detail?.message || 'Không thể đổi trạng thái công việc.';
+      showError(message);
     }
   };
 
@@ -68,8 +76,12 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
     try {
       const res = await api.put<Task>(`/tasks/${task.id}`, { priority: newPriority });
       if (res.data) onTaskUpdated(res.data);
-    } catch {
+      showSuccess('Cập nhật độ ưu tiên công việc thành công!');
+    } catch (err: any) {
       onTaskUpdated(task); // Rollback
+      const detail = err.response?.data?.detail;
+      const message = typeof detail === 'string' ? detail : detail?.message || 'Không thể đổi độ ưu tiên công việc.';
+      showError(message);
     }
   };
 
@@ -87,35 +99,74 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
     }
   };
 
+  const getCommentAuthorName = (c: Comment) => {
+    if (c.user?.full_name) return c.user.full_name;
+    const authorId = c.author_id || c.user_id;
+    if (authorId && user?.id === authorId) return user.full_name;
+    if (authorId) {
+      const match = members.find((m) => m.id === authorId);
+      if (match) return match.full_name;
+    }
+    return 'Team Member';
+  };
+
   const handleAddComment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!commentText.trim() || !user || commentPosting) return;
+    if (!commentText.trim() || !user || !task || commentPosting) return;
 
     setCommentPosting(true);
     try {
       const res = await api.post<Comment>(`/tasks/${task.id}/comments`, {
         content: commentText.trim(),
       });
-      if (res.data) {
-        setComments((prev) => [...prev, res.data]);
-        onTaskUpdated({ ...task, comments_count: (task.comments_count || 0) + 1 });
-      }
-      setCommentText('');
-    } catch {
-      // Optimistically add comment locally if API not available yet
-      const optimistic: Comment = {
-        id: `local-${Date.now()}`,
-        content: commentText.trim(),
+      const newComment = res.data;
+      const populated: Comment = {
+        ...newComment,
+        author_id: newComment.author_id || user.id,
         user_id: user.id,
         user: user,
-        task_id: task.id,
-        created_at: new Date().toISOString(),
       };
-      setComments((prev) => [...prev, optimistic]);
+      setComments((prev) => [...prev, populated]);
       onTaskUpdated({ ...task, comments_count: (task.comments_count || 0) + 1 });
       setCommentText('');
+      showSuccess('Đã thêm bình luận mới!');
+    } catch (err: any) {
+      const msg = err.response?.data?.detail || 'Không thể đăng bình luận.';
+      showError(msg);
     } finally {
       setCommentPosting(false);
+    }
+  };
+
+  const handleUpdateComment = async (commentId: string) => {
+    if (!editingCommentText.trim()) return;
+    try {
+      const res = await api.put<Comment>(`/comments/${commentId}`, {
+        content: editingCommentText.trim(),
+      });
+      setComments((prev) =>
+        prev.map((c) => (c.id === commentId ? { ...c, content: res.data?.content || editingCommentText.trim() } : c))
+      );
+      setEditingCommentId(null);
+      setEditingCommentText('');
+      showSuccess('Cập nhật bình luận thành công!');
+    } catch (err: any) {
+      const msg = err.response?.data?.detail || 'Không thể sửa bình luận.';
+      showError(msg);
+    }
+  };
+
+  const handleDeleteComment = async (commentId: string) => {
+    try {
+      await api.delete(`/comments/${commentId}`);
+      setComments((prev) => prev.filter((c) => c.id !== commentId));
+      if (task) {
+        onTaskUpdated({ ...task, comments_count: Math.max(0, (task.comments_count || 1) - 1) });
+      }
+      showSuccess('Đã xóa bình luận!');
+    } catch (err: any) {
+      const msg = err.response?.data?.detail || 'Không thể xóa bình luận.';
+      showError(msg);
     }
   };
 
@@ -248,23 +299,78 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
               ) : comments.length === 0 ? (
                 <p className="text-xs text-gray-500 italic">No comments yet. Be the first to comment.</p>
               ) : (
-                comments.map((c) => (
-                  <div key={c.id} className="p-3.5 rounded-2xl bg-gray-900/60 border border-gray-800/80">
-                    <div className="flex items-center justify-between mb-1.5">
-                      <div className="flex items-center gap-2">
-                        <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center text-[9px] font-bold text-white">
-                          {c.user?.full_name?.charAt(0) || 'U'}
+                comments.map((c) => {
+                  const authorName = getCommentAuthorName(c);
+                  const authorId = c.author_id || c.user_id;
+                  const isMyComment = !!user?.id && authorId === user.id;
+                  const canDeleteComment = isMyComment || user?.role === 'ADMIN' || user?.role === 'PM';
+
+                  return (
+                    <div key={c.id} className="p-3.5 rounded-2xl bg-gray-900/60 border border-gray-800/80">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <div className="flex items-center gap-2">
+                          <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center text-[9px] font-bold text-white shrink-0">
+                            {authorName.charAt(0)}
+                          </div>
+                          <span className="text-xs font-semibold text-white">{authorName}</span>
                         </div>
-                        <span className="text-xs font-semibold text-white">{c.user?.full_name}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] text-gray-500">
+                            {new Date(c.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                          {canDeleteComment && (
+                            <div className="flex items-center gap-1">
+                              {isMyComment && (
+                                <button
+                                  onClick={() => {
+                                    if (editingCommentId === c.id) {
+                                      setEditingCommentId(null);
+                                    } else {
+                                      setEditingCommentId(c.id);
+                                      setEditingCommentText(c.content);
+                                    }
+                                  }}
+                                  className="text-gray-400 hover:text-indigo-400 p-1 rounded transition-colors"
+                                  title="Edit Comment"
+                                >
+                                  <Edit3 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                              <button
+                                onClick={() => handleDeleteComment(c.id)}
+                                className="text-gray-400 hover:text-rose-400 p-1 rounded transition-colors"
+                                title="Delete Comment"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      <span className="text-[10px] text-gray-500">
-                        {new Date(c.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                    </div>
-                    <p className="text-xs text-gray-300 pl-8 leading-relaxed">{c.content}</p>
+
+                    {editingCommentId === c.id ? (
+                      <div className="flex gap-2 pl-8 pt-1">
+                        <input
+                          type="text"
+                          value={editingCommentText}
+                          onChange={(e) => setEditingCommentText(e.target.value)}
+                          className="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-2.5 py-1 text-xs text-white focus:outline-none focus:border-indigo-500"
+                        />
+                        <button
+                          onClick={() => handleUpdateComment(c.id)}
+                          className="px-2 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold flex items-center gap-1"
+                        >
+                          <Check className="w-3 h-3" />
+                          Save
+                        </button>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-gray-300 pl-8 leading-relaxed">{c.content}</p>
+                    )}
                   </div>
-                ))
-              )}
+                );
+              })
+            )}
             </div>
 
             {/* Comment Form */}

@@ -1,29 +1,25 @@
 import React, { useState } from 'react';
-import { Plus, Users, Calendar, ArrowRight, Edit3, Lock, Trash2 } from 'lucide-react';
+import { Plus, Users, Calendar, ArrowRight, FolderKanban, Edit3, Lock, Trash2 } from 'lucide-react';
 import type { Project } from '../types/api';
 import { useAuth } from '../context/AuthContext';
 import { ProjectModal } from '../components/projects/ProjectModal';
 import { MemberManagementModal } from '../components/projects/MemberManagementModal';
-import { ProjectCardSkeleton } from '../components/ui/Skeleton';
-import { EmptyState } from '../components/ui/EmptyState';
-import { useToast } from '../components/ui/Toast';
 import { api } from '../lib/api';
+import { useToast } from '../context/ToastContext';
 
 interface ProjectsPageProps {
   projects: Project[];
-  loading?: boolean;
   onSelectProject: (project: Project) => void;
   onRefreshProjects: () => void;
 }
 
 export const ProjectsPage: React.FC<ProjectsPageProps> = ({
   projects,
-  loading = false,
   onSelectProject,
   onRefreshProjects,
 }) => {
   const { user } = useAuth();
-  const toast = useToast();
+  const { showSuccess, showError } = useToast();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [selectedForEdit, setSelectedForEdit] = useState<Project | null>(null);
   const [selectedForMembers, setSelectedForMembers] = useState<Project | null>(null);
@@ -35,6 +31,7 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({
     return p.status === statusFilter;
   });
 
+  // Permission helpers based on backend constraints
   const getProjectUserRole = (project: Project) => {
     if (user?.role === 'ADMIN') return 'OWNER';
     const member = project.members?.find((m) => m.user_id === user?.id);
@@ -62,10 +59,11 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({
     setActionLoading(project.id);
     try {
       await api.patch(`/projects/${project.id}/close`);
-      toast.success('Project closed', `"${project.name}" is now marked as CLOSED.`);
+      showSuccess('Đã đóng/lưu trữ dự án thành công!');
       onRefreshProjects();
     } catch (err: any) {
-      toast.error('Failed to close project', err.response?.data?.detail || 'An error occurred.');
+      const msg = err.response?.data?.detail || 'Failed to close project.';
+      showError(msg);
     } finally {
       setActionLoading(null);
     }
@@ -76,21 +74,22 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({
     setActionLoading(project.id);
     try {
       await api.delete(`/projects/${project.id}`);
-      toast.success('Project deleted', `"${project.name}" has been permanently removed.`);
+      showSuccess('Đã xóa dự án thành công!');
       onRefreshProjects();
     } catch (err: any) {
-      toast.error('Failed to delete project', err.response?.data?.detail || 'An error occurred.');
+      const msg = err.response?.data?.detail || 'Failed to delete project.';
+      showError(msg);
     } finally {
       setActionLoading(null);
     }
   };
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
+    <div className="p-8">
       {/* Header Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">Projects Workspace</h1>
+          <h1 className="text-2xl font-bold text-white tracking-tight">Projects Workspace</h1>
           <p className="text-xs text-gray-400 mt-1">Select a project to manage tasks, Sprints, and view AI progress reports</p>
         </div>
 
@@ -115,7 +114,7 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({
           {(user?.role === 'PM' || user?.role === 'ADMIN') && (
             <button
               onClick={() => setIsCreateOpen(true)}
-              className="px-4 py-2 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white rounded-xl text-xs font-semibold shadow-lg shadow-indigo-600/30 flex items-center gap-2 transition-all active:scale-95"
+              className="px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white rounded-xl text-xs font-semibold shadow-lg shadow-indigo-600/30 flex items-center gap-2 transition-all"
             >
               <Plus className="w-4 h-4" />
               New Project
@@ -125,19 +124,22 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({
       </div>
 
       {/* Projects Grid */}
-      {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <ProjectCardSkeleton />
-          <ProjectCardSkeleton />
-          <ProjectCardSkeleton />
+      {filteredProjects.length === 0 ? (
+        <div className="glass-panel p-12 rounded-3xl text-center border border-gray-800/80 my-8">
+          <FolderKanban className="w-12 h-12 text-indigo-400 mx-auto mb-3 opacity-60" />
+          <h3 className="text-lg font-bold text-white">No Projects Found</h3>
+          <p className="text-xs text-gray-400 max-w-md mx-auto mt-1 mb-6">
+            You don't have active projects matching the current filter. Create a new project to get started.
+          </p>
+          {(user?.role === 'PM' || user?.role === 'ADMIN') && (
+            <button
+              onClick={() => setIsCreateOpen(true)}
+              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold"
+            >
+              Create First Project
+            </button>
+          )}
         </div>
-      ) : filteredProjects.length === 0 ? (
-        <EmptyState
-          title="Không tìm thấy dự án nào"
-          description="Chưa có dự án nào khớp với bộ lọc hiện tại. Bắt đầu bằng cách tạo dự án mới cho nhóm của bạn."
-          actionText={user?.role === 'PM' || user?.role === 'ADMIN' ? '+ Tạo dự án mới' : undefined}
-          onAction={() => setIsCreateOpen(true)}
-        />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredProjects.map((project) => (
@@ -174,7 +176,7 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({
 
               {/* Actions row inside card */}
               <div className="mt-6 pt-4 border-t border-gray-800/60 flex items-center justify-between">
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-2">
                   {/* Members list */}
                   <div className="flex -space-x-2 overflow-hidden mr-1">
                     {project.members && project.members.slice(0, 3).map((m, idx) => (
@@ -272,10 +274,6 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({
         }}
         project={selectedForEdit}
         onSuccess={() => {
-          toast.success(
-            selectedForEdit ? 'Project updated' : 'Project created',
-            selectedForEdit ? 'Project details updated successfully.' : 'New project created successfully.'
-          );
           onRefreshProjects();
         }}
       />
@@ -286,11 +284,9 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({
         onClose={() => setSelectedForMembers(null)}
         project={selectedForMembers}
         onMembersUpdated={() => {
-          toast.success('Members updated', 'Project team members updated successfully.');
           onRefreshProjects();
         }}
       />
     </div>
   );
 };
-
