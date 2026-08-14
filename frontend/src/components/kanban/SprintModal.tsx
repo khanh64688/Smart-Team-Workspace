@@ -3,7 +3,7 @@ import { X, Calendar, CheckCircle, Trash2, Edit3 } from 'lucide-react';
 import { api } from '../../lib/api';
 import type { Sprint, SprintStatus } from '../../types/api';
 import { useToast } from '../../context/ToastContext';
-import { ConfirmModal } from '../common/ConfirmModal';
+import { ConfirmModal } from '../notifications/ConfirmModal';
 
 interface SprintModalProps {
   isOpen: boolean;

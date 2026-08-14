@@ -4,7 +4,7 @@ import type { Task, Comment, User, TaskStatus, TaskPriority, Sprint } from '../.
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../lib/api';
 import { useToast } from '../../context/ToastContext';
-import { ConfirmModal } from '../common/ConfirmModal';
+import { ConfirmModal } from '../notifications/ConfirmModal';
 
 interface TaskDetailModalProps {
   isOpen: boolean;
