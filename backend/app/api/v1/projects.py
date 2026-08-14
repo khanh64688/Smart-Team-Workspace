@@ -6,7 +6,7 @@ from app.core.deps import CurrentUser, DbSession
 from app.models.project import ProjectStatus
 from app.models.user import User, UserRole
 from app.repositories.project import ProjectRepository
-from app.schemas.project import MemberCreate, MemberOut, MemberRoleUpdate, ProjectCreate, ProjectOut, ProjectPage, ProjectUpdate
+from app.schemas.project import MemberConfigUpdate, MemberCreate, MemberOut, MemberRoleUpdate, ProjectCreate, ProjectOut, ProjectPage, ProjectUpdate
 from app.services.project import ProjectService
 
 router = APIRouter(prefix="/projects", tags=["projects"])
@@ -35,7 +35,7 @@ def close_project(project_id: uuid.UUID, actor: CurrentUser, svc: ProjectService
 def delete_project(project_id: uuid.UUID, actor: CurrentUser, svc: ProjectService = Depends(service)): svc.soft_delete(project_id, actor); return Response(status_code=204)
 
 def member_out(member):
-    return MemberOut(user_id=member.user_id, full_name=member.user.full_name, email=member.user.email, project_role=member.project_role, joined_at=member.joined_at)
+    return MemberOut.model_validate(member)
 
 @router.get("/{project_id}/members", response_model=list[MemberOut])
 def list_members(project_id: uuid.UUID, actor: CurrentUser, svc: ProjectService = Depends(service)):
@@ -54,3 +54,17 @@ def leave_project(project_id: uuid.UUID, actor: CurrentUser, svc: ProjectService
 
 @router.delete("/{project_id}/members/{user_id}", status_code=204)
 def remove_member(project_id: uuid.UUID, user_id: uuid.UUID, actor: CurrentUser, svc: ProjectService = Depends(service)): svc.remove_member(project_id, user_id, actor); return Response(status_code=204)
+
+@router.patch("/{project_id}/members/{user_id}/config", response_model=MemberOut)
+def set_member_config(
+    project_id: uuid.UUID,
+    user_id: uuid.UUID,
+    payload: MemberConfigUpdate,
+    actor: CurrentUser,
+    svc: ProjectService = Depends(service),
+):
+    """Cấp hoặc thu hồi quyền config workspace cho một MEMBER.
+    Chỉ OWNER hoặc ADMIN mới được gọi endpoint này.
+    """
+    member = svc.set_member_config(project_id, user_id, payload.can_config, actor)
+    return member_out(member)

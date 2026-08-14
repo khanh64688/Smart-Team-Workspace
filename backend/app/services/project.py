@@ -6,7 +6,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.errors import api_error
-from app.models.project import Project, ProjectStatus
+from app.models.project import Project, ProjectStatus, ProjectVisibility
 from app.models.project_member import ProjectMember, ProjectRole
 from app.models.user import User, UserRole
 from app.repositories.project import ProjectRepository
@@ -44,6 +44,36 @@ class ProjectService:
             raise api_error(403, "PROJECT_MANAGER_REQUIRED", "Bạn cần quyền quản lý dự án.")
         return membership
 
+    def require_config_permission(self, project_id: uuid.UUID, actor: User) -> ProjectMember | None:
+        """Kiểm tra quyền config workspace (thêm/sửa/xoá bảng, task).
+
+        Logic:
+        - ADMIN hệ thống: luôn được.
+        - Project PUBLIC: mọi member đều được.
+        - Project PRIVATE: chỉ OWNER/MANAGER hoặc member có can_config=True.
+        """
+        project = self.require_project(project_id)
+        membership = self.require_member(project_id, actor)  # đảm bảo là thành viên
+
+        if actor.role == UserRole.ADMIN:
+            return membership
+
+        if project.visibility == ProjectVisibility.PUBLIC:
+            return membership
+
+        # PRIVATE: kiểm tra role hoặc can_config
+        if membership.project_role in (ProjectRole.OWNER, ProjectRole.MANAGER):
+            return membership
+
+        if membership.can_config:
+            return membership
+
+        raise api_error(
+            403,
+            "PROJECT_CONFIG_FORBIDDEN",
+            "Workspace này ở chế độ private. Bạn không có quyền chỉnh sửa cấu hình.",
+        )
+
     def update(self, project_id: uuid.UUID, payload: ProjectUpdate, actor: User):
         project = self.require_project(project_id); self.require_manager(project_id, actor)
         if project.status == ProjectStatus.CLOSED: raise api_error(409, "PROJECT_CLOSED", "Dự án đã đóng và chỉ có thể đọc.")
@@ -69,7 +99,12 @@ class ProjectService:
             raise api_error(403, "PROJECT_OWNER_REQUIRED", "Chỉ OWNER được phong MANAGER.")
         if self.repo.membership(project_id, payload.user_id):
             raise api_error(409, "PROJECT_MEMBER_EXISTS", "Người dùng đã là thành viên dự án.")
-        member = ProjectMember(project_id=project_id, user_id=payload.user_id, project_role=payload.project_role)
+        member = ProjectMember(
+            project_id=project_id,
+            user_id=payload.user_id,
+            project_role=payload.project_role,
+            can_config=payload.can_config,
+        )
         self.db.add(member)
         try: self.db.commit()
         except IntegrityError:
@@ -118,3 +153,20 @@ class ProjectService:
                 {"project_id": project_id, "user_id": user_id},
             )
         self.db.delete(target); self.db.commit()
+
+    def set_member_config(self, project_id: uuid.UUID, user_id: uuid.UUID, can_config: bool, actor: User) -> ProjectMember:
+        """Cấp / thu hồi quyền can_config của một MEMBER cụ thể.
+        Chỉ OWNER hoặc ADMIN mới được thực hiện.
+        OWNER và MANAGER không cần can_config nên không cho phép set.
+        """
+        manager = self.require_manager(project_id, actor)
+        if actor.role != UserRole.ADMIN and manager.project_role != ProjectRole.OWNER:
+            raise api_error(403, "PROJECT_OWNER_REQUIRED", "Chỉ OWNER được cấp/thu hồi quyền config.")
+        target = self.repo.membership(project_id, user_id)
+        if not target:
+            raise api_error(404, "PROJECT_MEMBER_NOT_FOUND", "Không tìm thấy thành viên.")
+        if target.project_role in (ProjectRole.OWNER, ProjectRole.MANAGER):
+            raise api_error(400, "CONFIG_ROLE_REDUNDANT", "OWNER và MANAGER luôn có quyền config, không cần thiết lập thêm.")
+        target.can_config = can_config
+        self.db.commit(); self.db.refresh(target)
+        return target
