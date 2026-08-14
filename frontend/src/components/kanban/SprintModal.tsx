@@ -3,6 +3,7 @@ import { X, Calendar, CheckCircle, Trash2, Edit3 } from 'lucide-react';
 import { api } from '../../lib/api';
 import type { Sprint, SprintStatus } from '../../types/api';
 import { useToast } from '../../context/ToastContext';
+import { ConfirmModal } from '../common/ConfirmModal';
 
 interface SprintModalProps {
   isOpen: boolean;
@@ -29,6 +30,13 @@ export const SprintModal: React.FC<SprintModalProps> = ({
   const [status, setStatus] = useState<SprintStatus>('PLANNED');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [confirmAction, setConfirmAction] = useState<{
+    type: 'close' | 'delete' | 'activate';
+    title: string;
+    message: string;
+    confirmText: string;
+    variant: 'warning' | 'danger' | 'primary';
+  } | null>(null);
 
   const isEditMode = !!sprint;
   const isClosed = sprint?.status === 'CLOSED';
@@ -49,6 +57,7 @@ export const SprintModal: React.FC<SprintModalProps> = ({
         setStatus('PLANNED');
       }
       setError(null);
+      setConfirmAction(null);
     }
   }, [isOpen, sprint]);
 
@@ -126,70 +135,61 @@ export const SprintModal: React.FC<SprintModalProps> = ({
     }
   };
 
-  const handleActivateSprint = async () => {
-    if (!sprint || !canManageSprints) return;
-    if (!confirm(`Bạn có chắc muốn KÍCH HOẠT Sprint "${sprint.name}"?`)) return;
+  const executeActivateSprint = async () => {
+    if (!sprint) return;
     setLoading(true);
     setError(null);
     try {
       await api.put(`/sprints/${sprint.id}`, { status: 'ACTIVE' });
       showSuccess('Kích hoạt Sprint thành công!');
+      setConfirmAction(null);
       onSuccess();
       onClose();
     } catch (err: any) {
       const msg = extractErrorMessage(err);
       setError(msg);
       showError(msg);
+      setConfirmAction(null);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleCloseSprint = async () => {
-    if (
-      !sprint ||
-      !canManageSprints ||
-      !confirm(
-        `Bạn có chắc chắn muốn ĐÓNG Sprint "${sprint.name}" không?\n\nKhi đóng, trạng thái Sprint sẽ thành CLOSED và không thể chỉnh sửa lại.`
-      )
-    )
-      return;
+  const executeCloseSprint = async () => {
+    if (!sprint) return;
     setLoading(true);
     setError(null);
     try {
       await api.patch(`/sprints/${sprint.id}/close`);
       showSuccess('Đã đóng Sprint thành công!');
+      setConfirmAction(null);
       onSuccess();
       onClose();
     } catch (err: any) {
       const msg = extractErrorMessage(err);
       setError(msg);
       showError(msg);
+      setConfirmAction(null);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDeleteSprint = async () => {
-    if (
-      !sprint ||
-      !canManageSprints ||
-      !confirm(
-        `Bạn có chắc chắn muốn XÓA Sprint "${sprint.name}" không?\n\nHành động này không thể hoàn tác.`
-      )
-    )
-      return;
+  const executeDeleteSprint = async () => {
+    if (!sprint) return;
     setLoading(true);
     setError(null);
     try {
       await api.delete(`/sprints/${sprint.id}`);
       showSuccess('Đã xóa Sprint thành công!');
+      setConfirmAction(null);
       onSuccess();
       onClose();
     } catch (err: any) {
       const msg = extractErrorMessage(err);
       setError(msg);
       showError(msg);
+      setConfirmAction(null);
     } finally {
       setLoading(false);
     }
@@ -294,7 +294,15 @@ export const SprintModal: React.FC<SprintModalProps> = ({
                 {sprint.status === 'PLANNED' && (
                   <button
                     type="button"
-                    onClick={handleActivateSprint}
+                    onClick={() =>
+                      setConfirmAction({
+                        type: 'activate',
+                        title: 'Xác nhận Kích hoạt Sprint',
+                        message: `Bạn có chắc chắn muốn KÍCH HOẠT Sprint "${sprint.name}" không?\n\nKích hoạt sẽ chuyển Sprint này thành Sprint đang hoạt động của dự án.`,
+                        confirmText: 'Kích hoạt Sprint',
+                        variant: 'primary',
+                      })
+                    }
                     disabled={loading}
                     className="px-3 py-2 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-400 border border-indigo-500/30 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all"
                   >
@@ -304,7 +312,15 @@ export const SprintModal: React.FC<SprintModalProps> = ({
                 {sprint.status === 'ACTIVE' && (
                   <button
                     type="button"
-                    onClick={handleCloseSprint}
+                    onClick={() =>
+                      setConfirmAction({
+                        type: 'close',
+                        title: 'Xác nhận Đóng Sprint',
+                        message: `Bạn có chắc chắn muốn ĐÓNG Sprint "${sprint.name}" không?\n\nKhi đóng, trạng thái Sprint sẽ thành CLOSED và không thể chỉnh sửa lại.`,
+                        confirmText: 'Đóng Sprint',
+                        variant: 'warning',
+                      })
+                    }
                     disabled={loading}
                     className="px-3 py-2 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all"
                   >
@@ -314,7 +330,15 @@ export const SprintModal: React.FC<SprintModalProps> = ({
                 )}
                 <button
                   type="button"
-                  onClick={handleDeleteSprint}
+                  onClick={() =>
+                    setConfirmAction({
+                      type: 'delete',
+                      title: 'Xác nhận Xóa Sprint',
+                      message: `Bạn có chắc chắn muốn XÓA Sprint "${sprint.name}" không?\n\nHành động này không thể hoàn tác.`,
+                      confirmText: 'Xóa Sprint',
+                      variant: 'danger',
+                    })
+                  }
                   disabled={loading}
                   className="px-3 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all"
                   title="Delete Sprint"
@@ -345,6 +369,23 @@ export const SprintModal: React.FC<SprintModalProps> = ({
             </div>
           </div>
         </form>
+
+        {confirmAction && (
+          <ConfirmModal
+            isOpen={!!confirmAction}
+            title={confirmAction.title}
+            message={confirmAction.message}
+            confirmText={confirmAction.confirmText}
+            confirmVariant={confirmAction.variant}
+            loading={loading}
+            onConfirm={() => {
+              if (confirmAction.type === 'activate') executeActivateSprint();
+              if (confirmAction.type === 'close') executeCloseSprint();
+              if (confirmAction.type === 'delete') executeDeleteSprint();
+            }}
+            onClose={() => setConfirmAction(null)}
+          />
+        )}
       </div>
     </div>
   );

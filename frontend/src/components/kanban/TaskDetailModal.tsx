@@ -4,6 +4,7 @@ import type { Task, Comment, User, TaskStatus, TaskPriority, Sprint } from '../.
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../lib/api';
 import { useToast } from '../../context/ToastContext';
+import { ConfirmModal } from '../common/ConfirmModal';
 
 interface TaskDetailModalProps {
   isOpen: boolean;
@@ -59,6 +60,9 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editingCommentText, setEditingCommentText] = useState('');
 
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
   // Sync edit state when task changes
   useEffect(() => {
     if (isOpen && task) {
@@ -68,135 +72,104 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
       setEditSprintId(task.sprint_id || '');
       setEditDueDate(task.due_date ? task.due_date.substring(0, 10) : '');
       setIsEditing(false);
-      fetchComments();
+      setIsDeleteConfirmOpen(false);
+    }
+  }, [isOpen, task]);
+
+  // Fetch comments when modal opens for a task
+  useEffect(() => {
+    if (isOpen && task) {
+      setCommentsLoading(true);
+      api
+        .get<Comment[]>(`/tasks/${task.id}/comments`)
+        .then((res) => {
+          setComments(Array.isArray(res.data) ? res.data : []);
+        })
+        .catch(() => {
+          setComments([]);
+        })
+        .finally(() => {
+          setCommentsLoading(false);
+        });
     } else {
       setComments([]);
-      setIsEditing(false);
     }
-  }, [task?.id, isOpen]);
-
-  const fetchComments = async () => {
-    if (!task) return;
-    setCommentsLoading(true);
-    try {
-      const res = await api.get<Comment[]>(`/tasks/${task.id}/comments`);
-      if (Array.isArray(res.data)) setComments(res.data);
-    } catch {
-      setComments([]);
-    } finally {
-      setCommentsLoading(false);
-    }
-  };
+  }, [isOpen, task]);
 
   if (!isOpen || !task) return null;
 
-  // Member can update task if canConfig is true and (is manager or assigned to task)
-  const isAssignedToMe = task.assignee_id === user?.id;
-  const canUpdateTaskDetails = canConfig && (canManageMembers || isAssignedToMe || !task.assignee_id);
-
   const handleStatusChange = async (newStatus: TaskStatus) => {
     if (!canConfig) {
-      showError('Bạn không có quyền chỉnh sửa (can_config = false).');
+      showError('Bạn không có quyền chuyển trạng thái công việc (can_config = false).');
       return;
     }
     const currentIdx = STATUS_ORDER[task.status];
     const newIdx = STATUS_ORDER[newStatus];
     if (Math.abs(newIdx - currentIdx) > 1) {
-      showError(`Không thể chuyển trạng thái từ ${task.status} sang ${newStatus}. Vui lòng chuyển từng bước liền kề.`);
+      showError('Trạng thái công việc chỉ được phép di chuyển từng bước một (Todo ↔ In Progress ↔ Review ↔ Done).');
       return;
     }
 
-    const updated = { ...task, status: newStatus };
-    onTaskUpdated(updated);
     try {
-      const res = await api.patch<Task>(`/tasks/${task.id}/move`, { status: newStatus });
-      if (res.data) onTaskUpdated(res.data);
-      showSuccess('Cập nhật trạng thái công việc thành công!');
+      const res = await api.put<Task>(`/tasks/${task.id}/move`, {
+        status: newStatus,
+      });
+      onTaskUpdated(res.data);
+      showSuccess(`Đã chuyển công việc sang ${newStatus}!`);
     } catch (err: any) {
-      onTaskUpdated(task); // Rollback
-      const detail = err.response?.data?.detail;
-      const message = typeof detail === 'string' ? detail : detail?.message || 'Không thể đổi trạng thái công việc.';
-      showError(message);
-    }
-  };
-
-  const handlePriorityChange = async (newPriority: TaskPriority) => {
-    if (!canUpdateTaskDetails) {
-      showError('Bạn không có quyền cập nhật độ ưu tiên của công việc này.');
-      return;
-    }
-    const updated = { ...task, priority: newPriority };
-    onTaskUpdated(updated);
-    try {
-      const res = await api.put<Task>(`/tasks/${task.id}`, { priority: newPriority });
-      if (res.data) onTaskUpdated(res.data);
-      showSuccess('Cập nhật độ ưu tiên công việc thành công!');
-    } catch (err: any) {
-      onTaskUpdated(task); // Rollback
-      const detail = err.response?.data?.detail;
-      const message = typeof detail === 'string' ? detail : detail?.message || 'Không thể đổi độ ưu tiên công việc.';
-      showError(message);
+      const msg = err.response?.data?.error?.message || err.response?.data?.detail || 'Không thể đổi trạng thái công việc.';
+      showError(msg);
     }
   };
 
   const handleAssigneeChange = async (newAssigneeId: string) => {
     if (!canManageMembers) {
-      showError('Chỉ Quản lý dự án (Owner/Manager/Admin) mới có quyền phân công lại công việc.');
+      showError('Chỉ Quản lý dự án mới có quyền gán lại công việc.');
       return;
     }
-    const assigneeObj = members.find((m) => m.id === newAssigneeId);
-    const updated = { ...task, assignee_id: newAssigneeId || undefined, assignee: assigneeObj };
-    onTaskUpdated(updated);
+
     try {
       const res = await api.patch<Task>(`/tasks/${task.id}/assign`, {
         assignee_id: newAssigneeId || null,
       });
-      if (res.data) onTaskUpdated(res.data);
-      showSuccess('Cập nhật người thực hiện thành công!');
+      onTaskUpdated(res.data);
+      showSuccess('Đã cập nhật người thực hiện công việc!');
     } catch (err: any) {
-      onTaskUpdated(task); // Rollback
-      const detail = err.response?.data?.detail;
-      showError(typeof detail === 'string' ? detail : 'Không thể đổi người thực hiện.');
+      const msg = err.response?.data?.error?.message || err.response?.data?.detail || 'Không thể gán lại công việc.';
+      showError(msg);
     }
   };
 
-  const handleSaveMetadataEdit = async (e: React.FormEvent) => {
+  const handleSaveMetadata = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!canUpdateTaskDetails) return;
+    if (!canConfig) return;
+    if (!editTitle.trim()) {
+      showError('Tiêu đề công việc không được để trống.');
+      return;
+    }
+
     setSaveLoading(true);
     try {
-      const payload: Record<string, unknown> = {
+      const payload: any = {
         title: editTitle.trim(),
-        description: editDescription.trim() || null,
+        description: editDescription.trim() || undefined,
         priority: editPriority,
         sprint_id: editSprintId || null,
       };
       if (editDueDate) {
         payload.due_date = new Date(editDueDate + 'T23:59:59Z').toISOString();
-      } else {
-        payload.due_date = null;
       }
+
       const res = await api.put<Task>(`/tasks/${task.id}`, payload);
       onTaskUpdated(res.data);
       setIsEditing(false);
       showSuccess('Cập nhật thông tin công việc thành công!');
     } catch (err: any) {
-      const detail = err.response?.data?.detail;
-      showError(typeof detail === 'string' ? detail : 'Không thể cập nhật công việc.');
+      const msg = err.response?.data?.error?.message || err.response?.data?.detail || 'Không thể lưu thay đổi công việc.';
+      showError(msg);
     } finally {
       setSaveLoading(false);
     }
-  };
-
-  const getCommentAuthorName = (c: Comment) => {
-    if (c.user?.full_name) return c.user.full_name;
-    const authorId = c.author_id || c.user_id;
-    if (authorId && user?.id === authorId) return user.full_name;
-    if (authorId) {
-      const match = members.find((m) => m.id === authorId);
-      if (match) return match.full_name;
-    }
-    return 'Team Member';
   };
 
   const handleAddComment = async (e: React.FormEvent) => {
@@ -243,7 +216,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
       const msg =
         err.response?.data?.error?.message ||
         (typeof err.response?.data?.detail === 'string' ? err.response.data.detail : null) ||
-        'Không thể sửa bình luận (Chỉ được phép sửa bình luận của chính mình trong vòng 15 phút sau khi tạo).';
+        'Không thể sửa bình luận.';
       showError(msg);
     }
   };
@@ -262,15 +235,20 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
     }
   };
 
-  const handleDeleteTask = async () => {
+  const handleDeleteTask = () => {
     if (!canConfig) {
       showError('Bạn không có quyền xóa công việc (can_config = false).');
       return;
     }
-    if (!confirm(`Bạn có chắc chắn muốn XÓA công việc "${task.title}" không?\n\nHành động này không thể hoàn tác.`)) return;
+    setIsDeleteConfirmOpen(true);
+  };
+
+  const executeDeleteTask = async () => {
+    setDeleteLoading(true);
     try {
       await api.delete(`/tasks/${task.id}`);
       showSuccess('Đã xóa công việc thành công!');
+      setIsDeleteConfirmOpen(false);
       if (onTaskDeleted) onTaskDeleted(task.id);
       onClose();
     } catch (err: unknown) {
@@ -280,7 +258,18 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
         (typeof axiosErr?.response?.data?.detail === 'string' ? axiosErr.response.data.detail : null) ||
         'Không thể xóa công việc. Vui lòng kiểm tra lại quyền truy cập.';
       showError(msg);
+      setIsDeleteConfirmOpen(false);
+    } finally {
+      setDeleteLoading(false);
     }
+  };
+
+  const getCommentAuthorName = (c: Comment): string => {
+    if (c.user?.full_name) return c.user.full_name;
+    const authorId = c.author_id || c.user_id;
+    if (!authorId) return 'Anonymous';
+    const found = members.find((m) => m.id === authorId);
+    return found?.full_name || 'Member';
   };
 
   const validStatuses = getValidNextStatuses(task.status);
@@ -289,21 +278,19 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
       <div className="w-full max-w-3xl glass-panel rounded-3xl border border-gray-800 p-6 shadow-2xl relative max-h-[90vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-start justify-between pb-4 border-b border-gray-800">
+        <div className="flex items-start justify-between pb-4 border-b border-gray-800 shrink-0">
           <div className="flex-1 pr-4">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-[10px] font-bold text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-full uppercase">
-                Task
+            <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-full border border-indigo-500/20">
+                {task.priority} Priority
+              </span>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                {task.status}
               </span>
               {task.is_overdue && (
                 <span className="flex items-center gap-1 text-[10px] font-bold text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded-full">
                   <AlertTriangle className="w-3 h-3" />
                   Overdue
-                </span>
-              )}
-              {!canConfig && (
-                <span className="text-[10px] font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full">
-                  Read Only (No Config)
                 </span>
               )}
             </div>
@@ -321,7 +308,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
-            {canUpdateTaskDetails && !isEditing && (
+            {canConfig && !isEditing && (
               <button
                 onClick={() => setIsEditing(true)}
                 className="p-1.5 text-indigo-400 hover:bg-indigo-600/20 rounded-lg transition-colors flex items-center gap-1 text-xs font-semibold"
@@ -338,7 +325,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                 title="Delete Task"
               >
                 <Trash2 className="w-3.5 h-3.5" />
-                Delete Task
+                Delete
               </button>
             )}
             <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-white rounded-lg">
@@ -348,10 +335,12 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
         </div>
 
         {/* Content Body */}
-        <div className="flex-1 overflow-y-auto py-4 space-y-6 pr-1">
+        <div className="py-4 space-y-6 overflow-y-auto flex-1 pr-1 custom-scrollbar">
+          {/* Editing Mode Form */}
           {isEditing ? (
-            /* Full Edit Form */
-            <form onSubmit={handleSaveMetadataEdit} className="space-y-4 bg-gray-900/60 p-4 rounded-2xl border border-gray-800">
+            <form onSubmit={handleSaveMetadata} className="space-y-4 p-4 rounded-2xl bg-gray-900/60 border border-gray-800">
+              <h4 className="text-xs font-bold text-indigo-400 uppercase tracking-wider mb-2">Edit Task Details</h4>
+              
               <div>
                 <label className="block text-xs font-semibold text-gray-300 mb-1">Description</label>
                 <textarea
@@ -427,7 +416,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 rounded-2xl bg-gray-900/60 border border-gray-800/80">
               <div>
                 <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">
-                  Status {!canConfig && '(Locked)'}
+                  Status
                 </label>
                 <select
                   value={task.status}
@@ -437,13 +426,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                 >
                   {validStatuses.map((st) => (
                     <option key={st} value={st}>
-                      {st === 'TODO'
-                        ? 'Todo'
-                        : st === 'IN_PROGRESS'
-                        ? 'In Progress'
-                        : st === 'REVIEW'
-                        ? 'Review'
-                        : 'Done'}
+                      {st}
                     </option>
                   ))}
                 </select>
@@ -451,62 +434,43 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
 
               <div>
                 <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">
-                  Priority
-                </label>
-                <select
-                  value={task.priority}
-                  disabled={!canUpdateTaskDetails}
-                  onChange={(e) => handlePriorityChange(e.target.value as TaskPriority)}
-                  className="w-full bg-gray-800 border border-gray-700 text-white rounded-xl px-3 py-1.5 text-xs font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <option value="LOW">Low</option>
-                  <option value="MEDIUM">Medium</option>
-                  <option value="HIGH">High</option>
-                  <option value="URGENT">Urgent</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">
-                  Assignee {!canManageMembers && '(Manager only)'}
+                  Assignee {!canManageMembers && '(Locked)'}
                 </label>
                 <select
                   value={task.assignee_id || ''}
                   disabled={!canManageMembers}
                   onChange={(e) => handleAssigneeChange(e.target.value)}
                   className="w-full bg-gray-800 border border-gray-700 text-white rounded-xl px-3 py-1.5 text-xs font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
-                  title={!canManageMembers ? 'Chỉ Quản lý dự án mới được phân công lại task' : ''}
                 >
                   <option value="">Unassigned</option>
                   {members.map((m) => (
                     <option key={m.id} value={m.id}>
-                      {m.full_name}
+                      {m.full_name} ({m.email})
                     </option>
                   ))}
                 </select>
               </div>
+
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">
+                  Due Date
+                </label>
+                <div className="text-xs font-semibold text-gray-300 py-1.5">
+                  {task.due_date ? new Date(task.due_date).toLocaleDateString() : 'No Due Date'}
+                </div>
+              </div>
             </div>
           )}
 
-          {/* Due Date & Sprint Info */}
-          {!isEditing && (
-            <div className="flex flex-wrap items-center gap-4 text-xs text-gray-400">
-              {task.due_date && (
-                <div>
-                  <span className="font-semibold text-gray-300">Due: </span>
-                  <span className={task.is_overdue ? 'text-rose-400 font-semibold' : ''}>
-                    {new Date(task.due_date).toLocaleDateString()}
-                  </span>
-                </div>
-              )}
-              {task.sprint_id && (
-                <div>
-                  <span className="font-semibold text-gray-300">Sprint: </span>
-                  <span className="text-indigo-400 font-semibold">
-                    {sprints.find((s) => s.id === task.sprint_id)?.name || 'Assigned Sprint'}
-                  </span>
-                </div>
-              )}
+          {/* Sprint info if assigned */}
+          {task.sprint_id && (
+            <div className="flex items-center gap-4 text-xs bg-indigo-950/30 p-3 rounded-2xl border border-indigo-500/20">
+              <div>
+                <span className="font-semibold text-gray-300">Sprint: </span>
+                <span className="text-indigo-400 font-semibold">
+                  {sprints.find((s) => s.id === task.sprint_id)?.name || 'Assigned Sprint'}
+                </span>
+              </div>
             </div>
           )}
 
@@ -515,7 +479,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
             <div>
               <h4 className="text-xs font-bold text-gray-300 uppercase tracking-wider mb-2">Description</h4>
               <div className="p-4 rounded-2xl bg-gray-900/40 border border-gray-800 text-xs text-gray-300 leading-relaxed min-h-[4rem]">
-                {task.description || <span className="italic text-gray-500">No description provided for this task.</span>}
+                {task.description || <span className="italic text-gray-500">No description provided.</span>}
               </div>
             </div>
           )}
@@ -531,9 +495,9 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
 
             <div className="space-y-3 mb-4 max-h-60 overflow-y-auto">
               {commentsLoading ? (
-                <p className="text-xs text-gray-500 italic">Loading comments...</p>
+                <p className="text-xs text-gray-500 italic">Loading...</p>
               ) : comments.length === 0 ? (
-                <p className="text-xs text-gray-500 italic">No comments yet. Be the first to comment.</p>
+                <p className="text-xs text-gray-500 italic">No comments yet.</p>
               ) : (
                 comments.map((c) => {
                   const authorName = getCommentAuthorName(c);
@@ -584,29 +548,29 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                         </div>
                       </div>
 
-                    {editingCommentId === c.id ? (
-                      <div className="flex gap-2 pl-8 pt-1">
-                        <input
-                          type="text"
-                          value={editingCommentText}
-                          onChange={(e) => setEditingCommentText(e.target.value)}
-                          className="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-2.5 py-1 text-xs text-white focus:outline-none focus:border-indigo-500"
-                        />
-                        <button
-                          onClick={() => handleUpdateComment(c.id)}
-                          className="px-2 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold flex items-center gap-1"
-                        >
-                          <Check className="w-3 h-3" />
-                          Save
-                        </button>
-                      </div>
-                    ) : (
-                      <p className="text-xs text-gray-300 pl-8 leading-relaxed">{c.content}</p>
-                    )}
-                  </div>
-                );
-              })
-            )}
+                      {editingCommentId === c.id ? (
+                        <div className="flex gap-2 pl-8 pt-1">
+                          <input
+                            type="text"
+                            value={editingCommentText}
+                            onChange={(e) => setEditingCommentText(e.target.value)}
+                            className="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-2.5 py-1 text-xs text-white focus:outline-none focus:border-indigo-500"
+                          />
+                          <button
+                            onClick={() => handleUpdateComment(c.id)}
+                            className="px-2 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold flex items-center gap-1"
+                          >
+                            <Check className="w-3 h-3" />
+                            Save
+                          </button>
+                        </div>
+                      ) : (
+                        <p className="text-xs text-gray-300 pl-8 leading-relaxed">{c.content}</p>
+                      )}
+                    </div>
+                  );
+                })
+              )}
             </div>
 
             {/* Comment Form */}
@@ -629,6 +593,19 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
             </form>
           </div>
         </div>
+
+        {/* Custom Confirmation Modal for Delete Task */}
+        <ConfirmModal
+          isOpen={isDeleteConfirmOpen}
+          title="Xác nhận Xóa Công việc"
+          message={`Bạn có chắc chắn muốn XÓA công việc "${task.title}" không?\n\nHành động này sẽ xóa vĩnh viễn công việc và không thể hoàn tác.`}
+          confirmText="Xóa Công việc"
+          cancelText="Hủy bỏ"
+          confirmVariant="danger"
+          loading={deleteLoading}
+          onConfirm={executeDeleteTask}
+          onClose={() => setIsDeleteConfirmOpen(false)}
+        />
       </div>
     </div>
   );
