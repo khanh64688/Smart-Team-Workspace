@@ -13,6 +13,9 @@ interface CreateTaskModalProps {
   members: User[];
   sprints?: Sprint[];
   currentSprintId?: string;
+  canConfig?: boolean;
+  canManageMembers?: boolean;
+  currentUserId?: string;
   onTaskCreated: (task: Task) => void;
 }
 
@@ -24,6 +27,9 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
   members,
   sprints = [],
   currentSprintId,
+  canConfig = true,
+  canManageMembers = false,
+  currentUserId,
   onTaskCreated,
 }) => {
   const { showSuccess, showError } = useToast();
@@ -54,6 +60,19 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!canConfig) {
+      const msg = 'Bạn không có quyền tạo công việc trong dự án này (can_config = false).';
+      setError(msg);
+      showError(msg);
+      return;
+    }
+    if (!canManageMembers && assigneeId && assigneeId !== currentUserId) {
+      const msg = 'MEMBER chỉ được phép tự gán task cho chính mình hoặc để trống.';
+      setError(msg);
+      showError(msg);
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
@@ -69,8 +88,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
       };
 
       if (dueDate) {
-        // Append timezone to satisfy backend validator
-        payload.due_date = new Date(dueDate).toISOString();
+        payload.due_date = new Date(dueDate + 'T23:59:59Z').toISOString();
       }
 
       const res = await api.post<Task>('/tasks', payload);
@@ -88,7 +106,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
         err.response?.data?.error?.message ||
         (typeof err.response?.data?.detail === 'string' ? err.response.data.detail : null) ||
         err.response?.data?.message ||
-        'Failed to create task. Please check your project permissions.';
+        'Không thể tạo công việc. Vui lòng kiểm tra lại quyền truy cập.';
       setError(msg);
       showError(msg);
     } finally {
@@ -173,18 +191,24 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-gray-300 mb-1.5">Assignee</label>
+              <label className="block text-xs font-semibold text-gray-300 mb-1.5">
+                Assignee {!canManageMembers && '(Self-assign only)'}
+              </label>
               <select
                 value={assigneeId}
                 onChange={(e) => setAssigneeId(e.target.value)}
                 className="w-full bg-gray-900/80 border border-gray-700/60 text-white rounded-xl px-3.5 py-2.5 text-xs focus:outline-none focus:border-indigo-500"
               >
                 <option value="">Unassigned</option>
-                {members.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.full_name}
-                  </option>
-                ))}
+                {members.map((m) => {
+                  const isMe = currentUserId === m.id;
+                  if (!canManageMembers && !isMe) return null;
+                  return (
+                    <option key={m.id} value={m.id}>
+                      {m.full_name} {isMe ? '(Tôi)' : ''}
+                    </option>
+                  );
+                })}
               </select>
             </div>
 

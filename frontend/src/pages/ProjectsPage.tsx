@@ -44,11 +44,13 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({
   };
 
   const hasConfigPermission = (project: Project) => {
-    if (user?.role === 'ADMIN' || user?.role === 'PM') return true;
+    if (user?.role === 'ADMIN') return true;
     if (project.owner_id === user?.id) return true;
     const member = getProjectUserMember(project);
-    if (member?.project_role === 'OWNER' || member?.project_role === 'MANAGER') return true;
-    return !!member?.can_config;
+    if (!member) return false;
+    if (project.visibility === 'PUBLIC') return true;
+    if (member.project_role === 'OWNER' || member.project_role === 'MANAGER') return true;
+    return !!member.can_config;
   };
 
   const canEdit = (project: Project) => {
@@ -56,13 +58,17 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({
   };
 
   const canManageMembers = (project: Project) => {
-    return hasConfigPermission(project);
+    if (user?.role === 'ADMIN') return true;
+    if (project.owner_id === user?.id) return true;
+    const member = getProjectUserMember(project);
+    return member?.project_role === 'OWNER' || member?.project_role === 'MANAGER';
   };
 
   const canClose = (project: Project) => {
-    if (user?.role === 'ADMIN' || user?.role === 'PM') return true;
+    if (user?.role === 'ADMIN') return true;
+    if (user?.role !== 'PM') return false;
     const role = getProjectUserRole(project);
-    return role === 'OWNER' || hasConfigPermission(project);
+    return role === 'OWNER';
   };
 
   const canDelete = () => {

@@ -280,19 +280,34 @@ export const MemberManagementModal: React.FC<MemberManagementModalProps> = ({
                       </span>
                     )}
 
-                    {/* Can config toggle button */}
-                    <button
-                      onClick={() => handleToggleConfig(m.user_id, !!m.can_config)}
-                      className={`p-1.5 rounded-lg border text-[10px] font-bold flex items-center gap-1 transition-all ${
-                        m.can_config
-                          ? 'bg-indigo-600/20 text-indigo-300 border-indigo-500/40'
-                          : 'bg-gray-900 text-gray-500 border-gray-800 hover:text-gray-300'
-                      }`}
-                      title="Toggle project config permission"
-                    >
-                      <ShieldCheck className="w-3.5 h-3.5" />
-                      {m.can_config ? 'Config OK' : 'No Config'}
-                    </button>
+                    {/* Can config toggle button (Only applicable for MEMBER role, and set by OWNER/ADMIN) */}
+                    {m.project_role === 'OWNER' || m.project_role === 'MANAGER' ? (
+                      <span
+                        className="p-1.5 rounded-lg border text-[10px] font-bold flex items-center gap-1 bg-indigo-600/10 text-indigo-400 border-indigo-500/30 cursor-not-allowed"
+                        title="OWNER và MANAGER luôn có quyền config"
+                      >
+                        <ShieldCheck className="w-3.5 h-3.5" />
+                        Config OK
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() => handleToggleConfig(m.user_id, !!m.can_config)}
+                        disabled={!(user?.role === 'ADMIN' || user?.id === project.owner_id || membersList.find(cur => cur.user_id === user?.id)?.project_role === 'OWNER')}
+                        className={`p-1.5 rounded-lg border text-[10px] font-bold flex items-center gap-1 transition-all ${
+                          m.can_config
+                            ? 'bg-indigo-600/20 text-indigo-300 border-indigo-500/40'
+                            : 'bg-gray-900 text-gray-500 border-gray-800 hover:text-gray-300'
+                        } disabled:opacity-40 disabled:cursor-not-allowed`}
+                        title={
+                          !(user?.role === 'ADMIN' || user?.id === project.owner_id || membersList.find(cur => cur.user_id === user?.id)?.project_role === 'OWNER')
+                            ? 'Chỉ OWNER dự án hoặc ADMIN hệ thống mới được sửa quyền config'
+                            : 'Bật/tắt quyền config cho MEMBER'
+                        }
+                      >
+                        <ShieldCheck className="w-3.5 h-3.5" />
+                        {m.can_config ? 'Config OK' : 'No Config'}
+                      </button>
+                    )}
 
                     {/* Remove member button */}
                     {m.user_id !== project.owner_id && (

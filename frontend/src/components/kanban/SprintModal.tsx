@@ -9,6 +9,7 @@ interface SprintModalProps {
   onClose: () => void;
   projectId: string;
   sprint?: Sprint | null; // Null for creation, object for editing/managing
+  canManageSprints?: boolean;
   onSuccess: () => void;
 }
 
@@ -17,6 +18,7 @@ export const SprintModal: React.FC<SprintModalProps> = ({
   onClose,
   projectId,
   sprint,
+  canManageSprints = true,
   onSuccess,
 }) => {
   const { showSuccess, showError } = useToast();
@@ -29,6 +31,7 @@ export const SprintModal: React.FC<SprintModalProps> = ({
   const [error, setError] = useState<string | null>(null);
 
   const isEditMode = !!sprint;
+  const isClosed = sprint?.status === 'CLOSED';
 
   useEffect(() => {
     if (isOpen) {
@@ -69,6 +72,15 @@ export const SprintModal: React.FC<SprintModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!canManageSprints) {
+      showError('Chỉ Quản lý dự án (Owner/Manager/Admin) mới có quyền tạo/sửa Sprint.');
+      return;
+    }
+    if (isClosed) {
+      showError('Không thể sửa Sprint đã CLOSED.');
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
@@ -114,8 +126,27 @@ export const SprintModal: React.FC<SprintModalProps> = ({
     }
   };
 
+  const handleActivateSprint = async () => {
+    if (!sprint || !canManageSprints) return;
+    if (!confirm(`Bạn có chắc muốn KÍCH HOẠT Sprint "${sprint.name}"?`)) return;
+    setLoading(true);
+    setError(null);
+    try {
+      await api.put(`/sprints/${sprint.id}`, { status: 'ACTIVE' });
+      showSuccess('Kích hoạt Sprint thành công!');
+      onSuccess();
+      onClose();
+    } catch (err: any) {
+      const msg = extractErrorMessage(err);
+      setError(msg);
+      showError(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleCloseSprint = async () => {
-    if (!sprint || !confirm(`Are you sure you want to close Sprint "${sprint.name}"?`)) return;
+    if (!sprint || !canManageSprints || !confirm(`Are you sure you want to close Sprint "${sprint.name}"?`)) return;
     setLoading(true);
     setError(null);
     try {
@@ -133,7 +164,7 @@ export const SprintModal: React.FC<SprintModalProps> = ({
   };
 
   const handleDeleteSprint = async () => {
-    if (!sprint || !confirm(`Are you sure you want to delete Sprint "${sprint.name}"?`)) return;
+    if (!sprint || !canManageSprints || !confirm(`Are you sure you want to delete Sprint "${sprint.name}"?`)) return;
     setLoading(true);
     setError(null);
     try {
@@ -158,9 +189,12 @@ export const SprintModal: React.FC<SprintModalProps> = ({
             <div className="w-8 h-8 rounded-xl bg-indigo-600/20 text-indigo-400 flex items-center justify-center">
               {isEditMode ? <Edit3 className="w-4 h-4" /> : <Calendar className="w-4 h-4" />}
             </div>
-            <h3 className="text-base font-bold text-white">
-              {isEditMode ? `Manage Sprint: ${sprint?.name}` : 'Create New Sprint'}
-            </h3>
+            <div>
+              <h3 className="text-base font-bold text-white">
+                {isEditMode ? `Manage Sprint: ${sprint?.name}` : 'Create New Sprint'}
+              </h3>
+              {isClosed && <span className="text-[10px] text-amber-400 font-semibold">CLOSED (Read Only)</span>}
+            </div>
           </div>
           <button onClick={onClose} className="p-1 text-gray-400 hover:text-white rounded-lg">
             <X className="w-5 h-5" />
@@ -179,10 +213,11 @@ export const SprintModal: React.FC<SprintModalProps> = ({
             <input
               type="text"
               required
+              disabled={!canManageSprints || isClosed}
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. Sprint 1 - Authentication & Core API"
-              className="w-full bg-gray-900/80 border border-gray-700/60 rounded-xl px-4 py-2.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500"
+              className="w-full bg-gray-900/80 border border-gray-700/60 rounded-xl px-4 py-2.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500 disabled:opacity-50"
             />
           </div>
 
@@ -190,10 +225,11 @@ export const SprintModal: React.FC<SprintModalProps> = ({
             <label className="block text-xs font-semibold text-gray-300 mb-1.5">Sprint Goal</label>
             <textarea
               rows={2}
+              disabled={!canManageSprints || isClosed}
               value={goal}
               onChange={(e) => setGoal(e.target.value)}
               placeholder="Describe key deliverable for this sprint..."
-              className="w-full bg-gray-900/80 border border-gray-700/60 rounded-xl px-4 py-2.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500"
+              className="w-full bg-gray-900/80 border border-gray-700/60 rounded-xl px-4 py-2.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500 disabled:opacity-50"
             />
           </div>
 
@@ -202,8 +238,9 @@ export const SprintModal: React.FC<SprintModalProps> = ({
               <label className="block text-xs font-semibold text-gray-300 mb-1.5">Initial Status</label>
               <select
                 value={status}
+                disabled={!canManageSprints}
                 onChange={(e) => setStatus(e.target.value as SprintStatus)}
-                className="w-full bg-gray-900/80 border border-gray-700/60 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
+                className="w-full bg-gray-900/80 border border-gray-700/60 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 disabled:opacity-50"
               >
                 <option value="PLANNED">PLANNED (Lên kế hoạch)</option>
                 <option value="ACTIVE">ACTIVE (Kích hoạt ngay)</option>
@@ -217,9 +254,10 @@ export const SprintModal: React.FC<SprintModalProps> = ({
               <input
                 type="date"
                 required
+                disabled={!canManageSprints || isClosed}
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="w-full bg-gray-900/80 border border-gray-700/60 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
+                className="w-full bg-gray-900/80 border border-gray-700/60 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 disabled:opacity-50"
               />
             </div>
 
@@ -228,17 +266,28 @@ export const SprintModal: React.FC<SprintModalProps> = ({
               <input
                 type="date"
                 required
+                disabled={!canManageSprints || isClosed}
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="w-full bg-gray-900/80 border border-gray-700/60 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
+                className="w-full bg-gray-900/80 border border-gray-700/60 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 disabled:opacity-50"
               />
             </div>
           </div>
 
           <div className="flex items-center justify-between pt-4 border-t border-gray-800">
-            {isEditMode && sprint ? (
+            {isEditMode && sprint && canManageSprints ? (
               <div className="flex items-center gap-2">
-                {sprint.status !== 'CLOSED' && (
+                {sprint.status === 'PLANNED' && (
+                  <button
+                    type="button"
+                    onClick={handleActivateSprint}
+                    disabled={loading}
+                    className="px-3 py-2 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-400 border border-indigo-500/30 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all"
+                  >
+                    Activate Sprint
+                  </button>
+                )}
+                {sprint.status === 'ACTIVE' && (
                   <button
                     type="button"
                     onClick={handleCloseSprint}
@@ -253,10 +302,11 @@ export const SprintModal: React.FC<SprintModalProps> = ({
                   type="button"
                   onClick={handleDeleteSprint}
                   disabled={loading}
-                  className="p-2 text-gray-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-xl transition-colors"
+                  className="px-3 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all"
                   title="Delete Sprint"
                 >
-                  <Trash2 className="w-4 h-4" />
+                  <Trash2 className="w-3.5 h-3.5" />
+                  Delete Sprint
                 </button>
               </div>
             ) : <div />}
@@ -269,13 +319,15 @@ export const SprintModal: React.FC<SprintModalProps> = ({
               >
                 Cancel
               </button>
-              <button
-                type="submit"
-                disabled={loading}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold shadow-lg shadow-indigo-600/30 transition-all disabled:opacity-50"
-              >
-                {loading ? 'Saving...' : isEditMode ? 'Save Changes' : 'Create Sprint'}
-              </button>
+              {canManageSprints && !isClosed && (
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold shadow-lg shadow-indigo-600/30 transition-all disabled:opacity-50"
+                >
+                  {loading ? 'Saving...' : isEditMode ? 'Save Changes' : 'Create Sprint'}
+                </button>
+              )}
             </div>
           </div>
         </form>

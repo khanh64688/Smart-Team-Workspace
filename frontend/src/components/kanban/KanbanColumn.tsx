@@ -11,6 +11,7 @@ interface KanbanColumnProps {
   tasks: Task[];
   onTaskClick: (task: Task) => void;
   onAddTask: (status: TaskStatus) => void;
+  canConfig?: boolean;
 }
 
 const columnHeaderStyles: Record<TaskStatus, { badgeBg: string; text: string }> = {
@@ -26,6 +27,7 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({
   tasks,
   onTaskClick,
   onAddTask,
+  canConfig = true,
 }) => {
   const { setNodeRef } = useDroppable({ id });
   const styles = columnHeaderStyles[id];
@@ -41,13 +43,15 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({
             {tasks.length}
           </span>
         </div>
-        <button
-          onClick={() => onAddTask(id)}
-          className="p-1 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
-          title="Add task"
-        >
-          <Plus className="w-4 h-4" />
-        </button>
+        {canConfig && (
+          <button
+            onClick={() => onAddTask(id)}
+            className="p-1 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
+            title="Add task"
+          >
+            <Plus className="w-4 h-4" />
+          </button>
+        )}
       </div>
 
       {/* Droppable Task Container */}
