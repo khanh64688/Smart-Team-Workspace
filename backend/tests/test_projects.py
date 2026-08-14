@@ -34,7 +34,7 @@ def test_member_cannot_create_project(client, db_session):
     _, headers = make_user(client, db_session, email="member-project@example.com")
     response = create_project(client, headers)
     assert response.status_code == 403
-    assert response.json()["error"]["code"] == "PROJECT_CREATE_FORBIDDEN"
+    assert response.json()["error"]["code"] == "AUTH_INSUFFICIENT_ROLE"
 
 
 def test_creator_is_owner_and_project_defaults_active(client, db_session):
@@ -122,3 +122,92 @@ def test_promoting_owner_updates_primary_owner_and_old_owner_can_leave(client, d
         f"/api/v1/projects/{project_id}/members/me",
         headers=original_headers,
     ).status_code == 204
+
+
+def test_member_cannot_update_project(
+    client,
+    db_session,
+):
+    _, pm_headers = make_user(
+        client,
+        db_session,
+        email="pm-update@example.com",
+        role=UserRole.PM,
+    )
+
+    member, member_headers = make_user(
+        client,
+        db_session,
+        email="member-update@example.com",
+    )
+
+    project_id = create_project(
+        client,
+        pm_headers,
+    ).json()["id"]
+
+    add_response = client.post(
+        f"/api/v1/projects/{project_id}/members",
+        json={
+            "user_id": str(member.id),
+            "project_role": "MEMBER",
+        },
+        headers=pm_headers,
+    )
+
+    assert add_response.status_code == 201
+
+    response = client.put(
+        f"/api/v1/projects/{project_id}",
+        json={
+            "name": "Member Cannot Update",
+        },
+        headers=member_headers,
+    )
+
+    assert response.status_code == 403
+
+
+def test_pm_project_member_cannot_update_project(
+    client,
+    db_session,
+):
+    _, owner_headers = make_user(
+        client,
+        db_session,
+        email="owner-update@example.com",
+        role=UserRole.PM,
+    )
+
+    pm_member, pm_member_headers = make_user(
+        client,
+        db_session,
+        email="pm-project-member@example.com",
+        role=UserRole.PM,
+    )
+
+    project_id = create_project(
+        client,
+        owner_headers,
+    ).json()["id"]
+
+    add_response = client.post(
+        f"/api/v1/projects/{project_id}/members",
+        json={
+            "user_id": str(pm_member.id),
+            "project_role": "MEMBER",
+        },
+        headers=owner_headers,
+    )
+
+    assert add_response.status_code == 201
+
+    response = client.put(
+        f"/api/v1/projects/{project_id}",
+        json={
+            "name": "PM Member Cannot Update",
+        },
+        headers=pm_member_headers,
+    )
+
+    assert response.status_code == 403

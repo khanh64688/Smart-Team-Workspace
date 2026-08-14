@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import uuid
 from collections.abc import Callable
 from typing import Annotated
 
@@ -12,6 +13,7 @@ from sqlalchemy.orm import Session
 
 from app.core.exceptions import (
     ForbiddenError,
+    NotFoundError,
     UnauthorizedError,
 )
 from app.core.security import (
@@ -21,8 +23,16 @@ from app.core.security import (
     decode_token,
 )
 from app.database import get_db
-from app.models import User, UserRole
-from app.repositories import UserRepository
+from app.models import (
+    ProjectMember,
+    ProjectRole,
+    User,
+    UserRole,
+)
+from app.repositories import (
+    ProjectRepository,
+    UserRepository,
+)
 
 
 # Khai báo cơ chế xác thực Bearer token cho FastAPI và Swagger.
@@ -184,10 +194,166 @@ def require_role(
 
     return role_checker
 
+ProjectAdminOrPmUser = Annotated[
+    User,
+    Depends(
+        require_role(
+            UserRole.ADMIN,
+            UserRole.PM,
+        )
+    ),
+]
+
+
+def _get_project_membership(
+    project_id: uuid.UUID,
+    current_user: User,
+    db: Session,
+) -> ProjectMember | None:
+    """
+    Kiểm tra project tồn tại và lấy membership của user.
+
+    ADMIN được phép bypass project membership.
+    """
+
+    repo = ProjectRepository(db)
+
+    project = repo.get(project_id)
+
+    if project is None:
+        raise NotFoundError(
+            code="PROJECT_NOT_FOUND",
+            message="Không tìm thấy dự án.",
+        )
+
+    if current_user.role == UserRole.ADMIN:
+        return None
+
+    membership = repo.membership(
+        project_id,
+        current_user.id,
+    )
+
+    if membership is None:
+        raise ForbiddenError(
+            code="PROJECT_MEMBERSHIP_REQUIRED",
+            message="Bạn không phải thành viên dự án.",
+        )
+
+    return membership
+
+
+def require_project_member(
+    project_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: DbSession,
+) -> User:
+    """
+    Yêu cầu user phải có quyền truy cập project.
+
+    ADMIN được bypass membership.
+    """
+
+    _get_project_membership(
+        project_id,
+        current_user,
+        db,
+    )
+
+    return current_user
+
+
+ProjectMemberUser = Annotated[
+    User,
+    Depends(require_project_member),
+]
+
+
+def require_project_role(
+    *allowed_roles: ProjectRole,
+) -> Callable[..., User]:
+    """
+    Tạo dependency kiểm tra role của user trong project.
+
+    ADMIN luôn được bypass project role.
+    """
+
+    if not allowed_roles:
+        raise ValueError(
+            "require_project_role cần ít nhất một ProjectRole."
+        )
+
+    allowed_role_set = frozenset(allowed_roles)
+
+    def role_checker(
+        project_id: uuid.UUID,
+        current_user: ProjectAdminOrPmUser,
+        db: DbSession,
+    ) -> User:
+        membership = _get_project_membership(
+            project_id,
+            current_user,
+            db,
+        )
+
+        if current_user.role == UserRole.ADMIN:
+            return current_user
+
+        if (
+            membership is None
+            or membership.project_role not in allowed_role_set
+        ):
+            raise ForbiddenError(
+                code="PROJECT_ROLE_REQUIRED",
+                message="Bạn không có đủ quyền trong dự án.",
+                details={
+                    "current_project_role": (
+                        membership.project_role.value
+                        if membership
+                        else None
+                    ),
+                    "required_project_roles": sorted(
+                        role.value
+                        for role in allowed_role_set
+                    ),
+                },
+            )
+
+        return current_user
+
+    return role_checker
+
+
+ProjectManagerUser = Annotated[
+    User,
+    Depends(
+        require_project_role(
+            ProjectRole.OWNER,
+            ProjectRole.MANAGER,
+        )
+    ),
+]
+
+
+ProjectOwnerUser = Annotated[
+    User,
+    Depends(
+        require_project_role(
+            ProjectRole.OWNER,
+        )
+    ),
+]
+
 
 __all__ = [
     "CurrentUser",
     "DbSession",
+    "ProjectAdminOrPmUser",
+    "ProjectMemberUser",
+    "ProjectManagerUser",
+    "ProjectOwnerUser",
     "get_current_user",
     "require_role",
+    "require_project_member",
+    "require_project_role",
 ]
