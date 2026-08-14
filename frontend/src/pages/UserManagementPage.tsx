@@ -249,14 +249,13 @@ export const UserManagementPage: React.FC = () => {
                 <th className="py-3.5 px-4 font-semibold">Email</th>
                 <th className="py-3.5 px-4 font-semibold">System Role</th>
                 <th className="py-3.5 px-4 font-semibold">Status</th>
-                <th className="py-3.5 px-4 font-semibold">Joined Date</th>
                 <th className="py-3.5 px-6 font-semibold text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-800/60">
               {loading && users.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center text-gray-500">
+                  <td colSpan={5} className="py-12 text-center text-gray-500">
                     <div className="flex flex-col items-center gap-2">
                       <RefreshCw className="w-6 h-6 animate-spin text-indigo-500" />
                       <span>Loading user directory...</span>
@@ -303,9 +302,6 @@ export const UserManagementPage: React.FC = () => {
                         {u.is_active ? 'ACTIVE' : 'LOCKED'}
                       </button>
                     </td>
-                    <td className="py-4 px-4 text-gray-400 text-[11px]">
-                      {u.created_at ? new Date(u.created_at).toLocaleDateString() : 'N/A'}
-                    </td>
                     <td className="py-4 px-6 text-right flex items-center justify-end gap-1">
                       <button
                         onClick={() => handleViewUserDetail(u.id)}
@@ -326,7 +322,7 @@ export const UserManagementPage: React.FC = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center text-gray-500">
+                  <td colSpan={5} className="py-12 text-center text-gray-500">
                     No users matching search filters found.
                   </td>
                 </tr>
