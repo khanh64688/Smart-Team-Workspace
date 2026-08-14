@@ -1,6 +1,6 @@
 import uuid
 
-from fastapi import APIRouter, status
+from fastapi import APIRouter, Query, status
 
 from app.core.deps import CurrentUser, DbSession
 from app.schemas.task import (
@@ -22,16 +22,56 @@ router = APIRouter(
     "",
     response_model=list[TaskResponse],
 )
+# def list_tasks(
+#     project_id: uuid.UUID,
+#     db: DbSession,
+#     current_user: CurrentUser,
+# ):
+#     service = TaskService(db)
+
+#     return service.list_tasks(
+#         project_id=project_id,
+#         actor=current_user,
+#     )
 def list_tasks(
     project_id: uuid.UUID,
     db: DbSession,
     current_user: CurrentUser,
+    q: str | None = Query(
+        default=None,
+        description="Tìm kiếm theo title hoặc description",
+    ),
+    status_filter: str | None = Query(
+        default=None,
+        alias="status",
+    ),
+    priority: str | None = None,
+    assignee: uuid.UUID | None = None,
+    sprint: uuid.UUID | None = None,
+    overdue: bool = False,
+    page: int = Query(
+        default=1,
+        ge=1,
+    ),
+    size: int = Query(
+        default=20,
+        ge=1,
+        le=100,
+    ),
 ):
     service = TaskService(db)
 
     return service.list_tasks(
         project_id=project_id,
         actor=current_user,
+        q=q,
+        status=status_filter,
+        priority=priority,
+        assignee_id=assignee,
+        sprint_id=sprint,
+        overdue=overdue,
+        page=page,
+        size=size,
     )
 
 @router.get(

@@ -1,0 +1,124 @@
+export type UserRole = 'ADMIN' | 'PM' | 'MEMBER';
+
+export interface User {
+  id: string;
+  email: string;
+  full_name: string;
+  role: UserRole;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface TokenPair {
+  access_token: string;
+  refresh_token: string;
+  token_type: string;
+  user: User;
+}
+
+export interface AccessTokenResponse {
+  access_token: string;
+  token_type: string;
+}
+
+export type ProjectStatus = 'ACTIVE' | 'CLOSED' | 'ARCHIVED';
+
+export type ProjectRole = 'OWNER' | 'MANAGER' | 'MEMBER';
+
+export interface ProjectMember {
+  user_id: string;
+  project_id?: string;
+  project_role: ProjectRole;
+  joined_at?: string;
+  user: User;
+}
+
+export interface MemberOut {
+  user_id: string;
+  full_name: string;
+  email: string;
+  project_role: ProjectRole;
+  joined_at: string;
+}
+
+export interface Project {
+  id: string;
+  name: string;
+  description?: string;
+  status: ProjectStatus;
+  owner_id: string;
+  owner?: User;
+  members?: ProjectMember[];
+  created_at: string;
+  updated_at?: string;
+}
+
+export type SprintStatus = 'PLANNED' | 'ACTIVE' | 'CLOSED';
+
+export interface Sprint {
+  id: string;
+  name: string;
+  goal?: string;
+  start_date: string;
+  end_date: string;
+  status: SprintStatus;
+  project_id: string;
+}
+
+export type TaskStatus = 'TODO' | 'IN_PROGRESS' | 'REVIEW' | 'DONE';
+export type TaskPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+
+export interface Task {
+  id: string;
+  title: string;
+  description?: string;
+  status: TaskStatus;
+  priority: TaskPriority;
+  due_date?: string;
+  assignee_id?: string;
+  assignee?: User;
+  sprint_id?: string;
+  project_id: string;
+  position?: number;
+  is_overdue?: boolean;
+  comments_count?: number;
+  created_at: string;
+  completed_at?: string;
+}
+
+export interface Comment {
+  id: string;
+  content: string;
+  user_id: string;
+  user: User;
+  task_id: string;
+  created_at: string;
+}
+
+export interface AISummary {
+  overview: string;
+  completed: string[];
+  at_risk: string[];
+  blockers: string[];
+  overloaded_members: string[];
+  next_priorities: string[];
+}
+
+export interface Notification {
+  id: string;
+  title: string;
+  message: string;
+  is_read: boolean;
+  created_at: string;
+  task_id?: string;
+}
+
+export interface DashboardMetrics {
+  total_tasks: number;
+  in_progress_tasks: number;
+  completed_tasks: number;
+  overdue_tasks: number;
+  by_status: Record<TaskStatus, number>;
+  by_priority: Record<TaskPriority, number>;
+  by_assignee: Array<{ user_id: string; user_name: string; count: number }>;
+}

@@ -21,6 +21,13 @@ api_router.include_router(users.router)
 api_router.include_router(projects.router)
 api_router.include_router(sprint.router)
 api_router.include_router(task.router)
+
+
+api_router.include_router(
+    users.router,
+    prefix="/users",
+    tags=["Users"],
+)
 api_router.include_router(comment.router)
 
 

@@ -11,7 +11,7 @@ from app.schemas.sprint import (
     SprintUpdate,
 )
 
-
+MAX_SPRINTS_PER_PROJECT = 10
 class SprintService:
     def __init__(self, db: Session):
         self.db = db
@@ -69,6 +69,8 @@ class SprintService:
 
         return sprint
 
+
+
     def create(
         self,
         project_id: uuid.UUID,
@@ -82,6 +84,21 @@ class SprintService:
         )
 
 
+         # Giới hạn tối đa 5 sprint / project
+        sprint_count = (
+            self.sprint_repository
+            .count_by_project(project_id)
+        )
+
+        if sprint_count >= MAX_SPRINTS_PER_PROJECT:
+            raise api_error(
+                409,
+                "SPRINT_LIMIT_REACHED",
+                (
+                    f"Project chỉ được phép có tối đa "
+                    f"{MAX_SPRINTS_PER_PROJECT} sprint."
+                ),
+            )
 
         if data.end_date <= data.start_date:
             raise api_error(
@@ -307,12 +324,12 @@ class SprintService:
             current_user,
         )
 
-        if sprint.status == "ACTIVE":
-            raise api_error(
-                400,
-                "SPRINT_ACTIVE_CANNOT_DELETE",
-                "Không thể xóa ACTIVE sprint.",
-            )
+        # if sprint.status == "ACTIVE":
+        #     raise api_error(
+        #         400,
+        #         "SPRINT_ACTIVE_CANNOT_DELETE",
+        #         "Không thể xóa ACTIVE sprint.",
+        #     )
 
         if self.sprint_repository.has_tasks(
             sprint_id
