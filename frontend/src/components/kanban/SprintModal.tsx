@@ -146,7 +146,14 @@ export const SprintModal: React.FC<SprintModalProps> = ({
   };
 
   const handleCloseSprint = async () => {
-    if (!sprint || !canManageSprints || !confirm(`Are you sure you want to close Sprint "${sprint.name}"?`)) return;
+    if (
+      !sprint ||
+      !canManageSprints ||
+      !confirm(
+        `Bạn có chắc chắn muốn ĐÓNG Sprint "${sprint.name}" không?\n\nKhi đóng, trạng thái Sprint sẽ thành CLOSED và không thể chỉnh sửa lại.`
+      )
+    )
+      return;
     setLoading(true);
     setError(null);
     try {
@@ -164,7 +171,14 @@ export const SprintModal: React.FC<SprintModalProps> = ({
   };
 
   const handleDeleteSprint = async () => {
-    if (!sprint || !canManageSprints || !confirm(`Are you sure you want to delete Sprint "${sprint.name}"?`)) return;
+    if (
+      !sprint ||
+      !canManageSprints ||
+      !confirm(
+        `Bạn có chắc chắn muốn XÓA Sprint "${sprint.name}" không?\n\nHành động này không thể hoàn tác.`
+      )
+    )
+      return;
     setLoading(true);
     setError(null);
     try {

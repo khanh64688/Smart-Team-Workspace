@@ -240,7 +240,10 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
       setEditingCommentText('');
       showSuccess('Cập nhật bình luận thành công!');
     } catch (err: any) {
-      const msg = err.response?.data?.detail || 'Không thể sửa bình luận.';
+      const msg =
+        err.response?.data?.error?.message ||
+        (typeof err.response?.data?.detail === 'string' ? err.response.data.detail : null) ||
+        'Không thể sửa bình luận (Chỉ được phép sửa bình luận của chính mình trong vòng 15 phút sau khi tạo).';
       showError(msg);
     }
   };
@@ -254,7 +257,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
       }
       showSuccess('Đã xóa bình luận!');
     } catch (err: any) {
-      const msg = err.response?.data?.detail || 'Không thể xóa bình luận.';
+      const msg = err.response?.data?.error?.message || err.response?.data?.detail || 'Không thể xóa bình luận.';
       showError(msg);
     }
   };
@@ -264,7 +267,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
       showError('Bạn không có quyền xóa công việc (can_config = false).');
       return;
     }
-    if (!confirm('Bạn có chắc chắn muốn xóa công việc này?')) return;
+    if (!confirm(`Bạn có chắc chắn muốn XÓA công việc "${task.title}" không?\n\nHành động này không thể hoàn tác.`)) return;
     try {
       await api.delete(`/tasks/${task.id}`);
       showSuccess('Đã xóa công việc thành công!');
@@ -535,8 +538,8 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                 comments.map((c) => {
                   const authorName = getCommentAuthorName(c);
                   const authorId = c.author_id || c.user_id;
-                  const isMyComment = !!user?.id && authorId === user.id;
-                  const canDeleteComment = isMyComment || user?.role === 'ADMIN' || user?.role === 'PM';
+                  const isMyComment = !!user?.id && !!authorId && String(authorId).toLowerCase() === String(user.id).toLowerCase();
+                  const canDeleteComment = isMyComment || user?.role === 'ADMIN' || canManageMembers;
 
                   return (
                     <div key={c.id} className="p-3.5 rounded-2xl bg-gray-900/60 border border-gray-800/80">
