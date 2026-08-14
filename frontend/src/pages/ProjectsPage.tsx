@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Users, Calendar, ArrowRight, FolderKanban, Edit3, Lock, Trash2 } from 'lucide-react';
+import { Plus, Users, Calendar, ArrowRight, FolderKanban, Edit3, Lock, Globe, Trash2, ShieldCheck } from 'lucide-react';
 import type { Project } from '../types/api';
 import { useAuth } from '../context/AuthContext';
 import { ProjectModal } from '../components/projects/ProjectModal';
@@ -32,22 +32,37 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({
   });
 
   // Permission helpers based on backend constraints
+  const getProjectUserMember = (project: Project) => {
+    return project.members?.find((m) => m.user_id === user?.id);
+  };
+
   const getProjectUserRole = (project: Project) => {
     if (user?.role === 'ADMIN') return 'OWNER';
-    const member = project.members?.find((m) => m.user_id === user?.id);
+    if (project.owner_id === user?.id) return 'OWNER';
+    const member = getProjectUserMember(project);
     return member?.project_role || null;
   };
 
+  const hasConfigPermission = (project: Project) => {
+    if (user?.role === 'ADMIN' || user?.role === 'PM') return true;
+    if (project.owner_id === user?.id) return true;
+    const member = getProjectUserMember(project);
+    if (member?.project_role === 'OWNER' || member?.project_role === 'MANAGER') return true;
+    return !!member?.can_config;
+  };
+
   const canEdit = (project: Project) => {
-    if (user?.role === 'ADMIN') return true;
-    const role = getProjectUserRole(project);
-    return role === 'OWNER' || role === 'MANAGER';
+    return hasConfigPermission(project);
+  };
+
+  const canManageMembers = (project: Project) => {
+    return hasConfigPermission(project);
   };
 
   const canClose = (project: Project) => {
-    if (user?.role === 'ADMIN') return true;
+    if (user?.role === 'ADMIN' || user?.role === 'PM') return true;
     const role = getProjectUserRole(project);
-    return role === 'OWNER';
+    return role === 'OWNER' || hasConfigPermission(project);
   };
 
   const canDelete = () => {
@@ -151,15 +166,39 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({
             >
               <div>
                 <div className="flex items-center justify-between mb-3">
-                  <span
-                    className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                      project.status === 'ACTIVE'
-                        ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                        : 'bg-gray-700/30 text-gray-400 border border-gray-700/30'
-                    }`}
-                  >
-                    {project.status}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                        project.status === 'ACTIVE'
+                          ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                          : 'bg-gray-700/30 text-gray-400 border border-gray-700/30'
+                      }`}
+                    >
+                      {project.status}
+                    </span>
+
+                    <span
+                      className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 ${
+                        project.visibility === 'PUBLIC'
+                          ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20'
+                          : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                      }`}
+                      title={project.visibility === 'PUBLIC' ? 'Public project accessible by workspace' : 'Private project restricted to members'}
+                    >
+                      {project.visibility === 'PUBLIC' ? (
+                        <>
+                          <Globe className="w-3 h-3 text-indigo-400" />
+                          PUBLIC
+                        </>
+                      ) : (
+                        <>
+                          <Lock className="w-3 h-3 text-amber-400" />
+                          PRIVATE
+                        </>
+                      )}
+                    </span>
+                  </div>
+
                   <div className="flex items-center gap-1.5 text-xs text-gray-500">
                     <Calendar className="w-3.5 h-3.5" />
                     {new Date(project.created_at).toLocaleDateString()}
@@ -169,6 +208,14 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({
                 <h3 className="text-lg font-bold text-white group-hover:text-indigo-400 transition-colors line-clamp-1">
                   {project.name}
                 </h3>
+
+                {getProjectUserMember(project)?.can_config && (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-indigo-300 bg-indigo-500/15 border border-indigo-500/30 px-2 py-0.5 rounded-md mt-1 mb-1" title="You have configuration permission on this project">
+                    <ShieldCheck className="w-3 h-3 text-indigo-400" />
+                    Can Config
+                  </span>
+                )}
+
                 <p className="text-xs text-gray-400 mt-2 line-clamp-2 min-h-[2.5rem]">
                   {project.description || 'No description provided.'}
                 </p>
@@ -196,7 +243,7 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({
                   </div>
 
                   {/* Manage Members button */}
-                  {(user?.role === 'PM' || user?.role === 'ADMIN' || project.owner_id === user?.id) && (
+                  {canManageMembers(project) && (
                     <button
                       onClick={(e) => {
                         e.stopPropagation();

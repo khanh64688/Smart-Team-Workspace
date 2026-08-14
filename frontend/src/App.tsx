@@ -51,14 +51,18 @@ const AppContent: React.FC = () => {
 
   const fetchProjects = useCallback(async (shouldResetSelection = false) => {
     try {
-      // API returns { data: Project[], meta: { page, size, total } }
-      const res = await api.get<{ data: Project[]; meta: { total: number } }>('/projects');
-      const list = res.data?.data ?? [];
+      // API returns either Project[] or { data: Project[], meta: { total: number } }
+      const res = await api.get<any>('/projects');
+      const list: Project[] = Array.isArray(res.data)
+        ? res.data
+        : Array.isArray(res.data?.data)
+        ? res.data.data
+        : [];
       setProjects(list);
       if (shouldResetSelection) {
         setSelectedProject(list[0] ?? null);
       } else {
-        setSelectedProject((prev) => prev ?? list[0] ?? null);
+        setSelectedProject((prev) => (prev ? (list.find((p) => p.id === prev.id) ?? list[0] ?? null) : (list[0] ?? null)));
       }
     } catch (err) {
       console.error('Failed to fetch projects:', err);

@@ -38,6 +38,3 @@ Thumbs.db
 .idea/
 *.suo
 *.user
-
-# Local repositories
-remote_backend_repo/
