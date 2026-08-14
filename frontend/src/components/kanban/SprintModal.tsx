@@ -74,7 +74,11 @@ export const SprintModal: React.FC<SprintModalProps> = ({
       onSuccess();
       onClose();
     } catch (err: any) {
-      const msg = err.response?.data?.detail || `Failed to ${isEditMode ? 'update' : 'create'} Sprint.`;
+      const msg =
+        err.response?.data?.error?.message ||
+        (typeof err.response?.data?.detail === 'string' ? err.response.data.detail : null) ||
+        err.response?.data?.message ||
+        `Failed to ${isEditMode ? 'update' : 'create'} Sprint.`;
       setError(msg);
       showError(msg);
     } finally {

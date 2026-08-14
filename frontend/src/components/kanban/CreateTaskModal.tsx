@@ -83,10 +83,14 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
       setAssigneeId('');
       setDueDate('');
       onClose();
-    } catch (err: unknown) {
-      const axiosErr = err as { response?: { data?: { detail?: string } } };
-      const detail = axiosErr?.response?.data?.detail;
-      setError(typeof detail === 'string' ? detail : 'Failed to create task. Please try again.');
+    } catch (err: any) {
+      const msg =
+        err.response?.data?.error?.message ||
+        (typeof err.response?.data?.detail === 'string' ? err.response.data.detail : null) ||
+        err.response?.data?.message ||
+        'Failed to create task. Please check your project permissions.';
+      setError(msg);
+      showError(msg);
     } finally {
       setLoading(false);
     }

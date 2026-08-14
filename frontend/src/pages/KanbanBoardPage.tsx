@@ -160,9 +160,12 @@ export const KanbanBoardPage: React.FC<KanbanBoardPageProps> = ({
       showSuccess('Cập nhật trạng thái công việc thành công!');
     } catch (err: any) {
       onTasksChange(original);
-      const detail = err.response?.data?.detail;
-      const message = typeof detail === 'string' ? detail : detail?.message || 'Không thể di chuyển công việc.';
-      showError(message);
+      const msg =
+        err.response?.data?.error?.message ||
+        (typeof err.response?.data?.detail === 'string' ? err.response.data.detail : null) ||
+        err.response?.data?.message ||
+        'Không thể di chuyển công việc. Vui lòng kiểm tra quyền cấu hình dự án.';
+      showError(msg);
     }
   };
 
