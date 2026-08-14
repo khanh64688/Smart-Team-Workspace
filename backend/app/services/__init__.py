@@ -5,6 +5,8 @@ from app.services.auth_service import (
     TokenPair,
 )
 from app.services.user_service import UserService
+from app.services.project import ProjectService
+from app.services.task import TaskService
 
 
 __all__ = [
@@ -13,4 +15,6 @@ __all__ = [
     "LoginResult",
     "TokenPair",
     "UserService",
+    "ProjectService",
+    "TaskService",
 ]

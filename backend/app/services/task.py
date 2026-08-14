@@ -2,197 +2,198 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any
 
-from app.core.exceptions import (
-    BadRequestError,
-    ForbiddenError,
-    NotFoundError,
-)
-from app.models import User, UserRole
-from app.models.project_member import ProjectRole
+from sqlalchemy.orm import Session
+
+from app.core.errors import api_error
 from app.models.task import Task
-from app.repositories.project import ProjectRepository
+from app.models.user import User, UserRole
+from app.models.project_member import ProjectRole
+
 from app.repositories.task import TaskRepository
+from app.repositories.project import ProjectRepository
+
 from app.schemas.task import (
-    TaskAssign,
     TaskCreate,
-    TaskMove,
     TaskUpdate,
+    TaskAssign,
+    TaskMove,
 )
 
+from app.services.project import ProjectService
 
+MAX_TASKS_PER_PROJECT = 100
 class TaskService:
-    def __init__(self, db):
+    def __init__(self, db: Session):
         self.db = db
-        self.tasks = TaskRepository(db)
-        self.projects = ProjectRepository(db)
 
-    def get_task(
+        # Repository của Task
+        self.repo = TaskRepository(db)
+
+        # ProjectService xử lý permission của actor
+        self.project_service = ProjectService(db)
+
+        # một user cụ thể có thuộc project hay không.
+        self.project_repo = ProjectRepository(db)
+
+    def require_task(
         self,
         task_id: uuid.UUID,
     ) -> Task:
-        task = self.tasks.get(task_id)
 
-        if task is None:
-            raise NotFoundError(
-                code="TASK_NOT_FOUND",
-                message="Không tìm thấy task.",
-                details={
-                    "task_id": str(task_id),
-                },
+        task = self.repo.get(task_id)
+
+        if not task:
+            raise api_error(
+                404,
+                "TASK_NOT_FOUND",
+                "Không tìm thấy task.",
             )
 
         return task
 
-    def get_project_membership(
-        self,
-        project_id: uuid.UUID,
-        user_id: uuid.UUID,
-    ):
-        project = self.projects.get(project_id)
-
-        if project is None:
-            raise NotFoundError(
-                code="PROJECT_NOT_FOUND",
-                message="Không tìm thấy project.",
-                details={
-                    "project_id": str(project_id),
-                },
-            )
-
-        membership = self.projects.membership(
-            project_id,
-            user_id,
-        )
-
-        if membership is None:
-            raise ForbiddenError(
-                code="PROJECT_MEMBERSHIP_REQUIRED",
-                message="Bạn không phải thành viên của project.",
-                details={
-                    "project_id": str(project_id),
-                },
-            )
-
-        return membership
-
-    def require_manager(
-        self,
-        project_id: uuid.UUID,
-        current_user: User,
-    ):
-        if current_user.role == UserRole.ADMIN:
-            return None
-
-        membership = self.get_project_membership(
-            project_id,
-            current_user.id,
-        )
-
-        if membership.project_role not in (
-            ProjectRole.OWNER,
-            ProjectRole.MANAGER,
-        ):
-            raise ForbiddenError(
-                code="TASK_MANAGER_REQUIRED",
-                message="Chỉ OWNER hoặc MANAGER mới có quyền thực hiện hành động này.",
-            )
-
-        return membership
-
-    def require_task_access(
+    def require_task_member(
         self,
         task: Task,
-        current_user: User,
+        actor: User,
     ):
-        if current_user.role == UserRole.ADMIN:
-            return None
 
-        membership = self.get_project_membership(
+        return self.project_service.require_member(
             task.project_id,
-            current_user.id,
+            actor,
         )
-
-        return membership
 
     def require_assignee_member(
         self,
         project_id: uuid.UUID,
         assignee_id: uuid.UUID,
     ):
-        membership = self.projects.membership(
+
+        membership = self.project_repo.membership(
             project_id,
             assignee_id,
         )
 
-        if membership is None:
-            raise BadRequestError(
-                code="TASK_ASSIGNEE_NOT_PROJECT_MEMBER",
-                message="Người được giao task phải là thành viên của project.",
+        if not membership:
+            raise api_error(
+                400,
+                "TASK_ASSIGNEE_NOT_PROJECT_MEMBER",
+                "Người được giao task phải là thành viên của project.",
                 details={
-                    "assignee_id": str(assignee_id),
                     "project_id": str(project_id),
+                    "assignee_id": str(assignee_id),
                 },
             )
 
         return membership
 
+    # def list_tasks(
+    #     self,
+    #     project_id: uuid.UUID,
+    #     actor: User,
+    # ) -> list[Task]:
+
+    #     self.project_service.require_member(
+    #         project_id,
+    #         actor,
+    #     )
+
+    #     return self.repo.list_by_project(
+    #         project_id,
+    #     )
+
     def list_tasks(
         self,
         project_id: uuid.UUID,
-        current_user: User,
+        actor: User,
+        q: str | None = None,
+        status: str | None = None,
+        priority: str | None = None,
+        assignee_id: uuid.UUID | None = None,
+        sprint_id: uuid.UUID | None = None,
+        overdue: bool = False,
+        page: int = 1,
+        size: int = 20,
     ) -> list[Task]:
 
-        self.get_project_membership(
+        self.project_service.require_member(
             project_id,
-            current_user.id,
+            actor,
         )
 
-        return self.tasks.list_by_project(
-            project_id,
+        offset = (page - 1) * size
+
+        return self.repo.list_by_project(
+            project_id=project_id,
+            q=q,
+            status=status,
+            priority=priority,
+            assignee_id=assignee_id,
+            sprint_id=sprint_id,
+            overdue=overdue,
+            offset=offset,
+            limit=size,
         )
 
     def get(
         self,
         task_id: uuid.UUID,
-        current_user: User,
+        actor: User,
     ) -> Task:
 
-        task = self.get_task(task_id)
+        task = self.require_task(task_id)
 
-        self.require_task_access(
+        self.require_task_member(
             task,
-            current_user,
+            actor,
         )
 
         return task
 
+
+
     def create(
         self,
         payload: TaskCreate,
-        current_user: User,
+        actor: User,
     ) -> Task:
 
-        membership = self.get_project_membership(
+        membership = self.project_service.require_member(
             payload.project_id,
-            current_user.id,
+            actor,
         )
+
+        task_count = self.repo.count_by_project(
+            payload.project_id
+        )
+
+        if task_count >= MAX_TASKS_PER_PROJECT:
+            raise api_error(
+                409,
+                "TASK_LIMIT_REACHED",
+                (
+                    f"Project chỉ được phép có tối đa "
+                    f"{MAX_TASKS_PER_PROJECT} task."
+                ),
+            )
 
         assignee_id = payload.assignee_id
 
         if (
-            current_user.role != UserRole.ADMIN
+            actor.role != UserRole.ADMIN
             and membership.project_role == ProjectRole.MEMBER
         ):
             if (
                 assignee_id is not None
-                and assignee_id != current_user.id
+                and assignee_id != actor.id
             ):
-                raise ForbiddenError(
-                    code="TASK_SELF_ASSIGN_ONLY",
-                    message="MEMBER chỉ được tự gán task cho chính mình.",
+                raise api_error(
+                    403,
+                    "TASK_SELF_ASSIGN_ONLY",
+                    "MEMBER chỉ được tự gán task cho chính mình.",
                 )
 
-            assignee_id = current_user.id
+            assignee_id = actor.id
+
 
         if assignee_id is not None:
             self.require_assignee_member(
@@ -200,27 +201,27 @@ class TaskService:
                 assignee_id,
             )
 
+
         if payload.sprint_id is not None:
-            sprint = self.tasks.get_sprint(
+
+            sprint = self.repo.get_sprint(
                 payload.sprint_id,
             )
 
-            if sprint is None:
-                raise NotFoundError(
-                    code="SPRINT_NOT_FOUND",
-                    message="Không tìm thấy sprint.",
-                    details={
-                        "sprint_id": str(payload.sprint_id),
-                    },
+            if not sprint:
+                raise api_error(
+                    404,
+                    "SPRINT_NOT_FOUND",
+                    "Không tìm thấy sprint.",
                 )
 
-            if str(sprint.project_id) != str(
-                payload.project_id
-            ):
-                raise BadRequestError(
-                    code="TASK_SPRINT_PROJECT_MISMATCH",
-                    message="Sprint không thuộc project của task.",
+            if sprint.project_id != payload.project_id:
+                raise api_error(
+                    400,
+                    "TASK_SPRINT_PROJECT_MISMATCH",
+                    "Sprint không thuộc project của task.",
                 )
+
 
         task = Task(
             project_id=payload.project_id,
@@ -236,7 +237,8 @@ class TaskService:
         )
 
         try:
-            self.tasks.create(task)
+            self.repo.create(task)
+
             self.db.commit()
             self.db.refresh(task)
 
@@ -246,28 +248,30 @@ class TaskService:
             self.db.rollback()
             raise
 
+
     def update(
         self,
         task_id: uuid.UUID,
         payload: TaskUpdate,
-        current_user: User,
+        actor: User,
     ) -> Task:
 
-        task = self.get_task(task_id)
+        task = self.require_task(task_id)
 
-        membership = self.require_task_access(
+        membership = self.require_task_member(
             task,
-            current_user,
+            actor,
         )
 
         if (
-            current_user.role != UserRole.ADMIN
+            actor.role != UserRole.ADMIN
             and membership.project_role == ProjectRole.MEMBER
         ):
-            if task.assignee_id != current_user.id:
-                raise ForbiddenError(
-                    code="TASK_UPDATE_FORBIDDEN",
-                    message="MEMBER chỉ được sửa task mình phụ trách.",
+            if task.assignee_id != actor.id:
+                raise api_error(
+                    403,
+                    "TASK_UPDATE_FORBIDDEN",
+                    "MEMBER chỉ được sửa task mình phụ trách.",
                 )
 
         changes: dict[str, Any] = payload.model_dump(
@@ -275,14 +279,21 @@ class TaskService:
         )
 
         # Không cho PUT thay đổi assignee.
-        # Việc assign phải thông qua /assign.
-        changes.pop("assignee_id", None)
+        changes.pop(
+            "assignee_id",
+            None,
+        )
 
         for field, value in changes.items():
-            setattr(task, field, value)
+            setattr(
+                task,
+                field,
+                value,
+            )
 
         try:
-            self.tasks.update(task)
+            self.repo.update(task)
+
             self.db.commit()
             self.db.refresh(task)
 
@@ -296,14 +307,14 @@ class TaskService:
         self,
         task_id: uuid.UUID,
         payload: TaskAssign,
-        current_user: User,
+        actor: User,
     ) -> Task:
 
-        task = self.get_task(task_id)
+        task = self.require_task(task_id)
 
-        self.require_manager(
+        self.project_service.require_manager(
             task.project_id,
-            current_user,
+            actor,
         )
 
         if payload.assignee_id is not None:
@@ -324,29 +335,29 @@ class TaskService:
             self.db.rollback()
             raise
 
-
     def move(
         self,
         task_id: uuid.UUID,
         payload: TaskMove,
-        current_user: User,
+        actor: User,
     ) -> Task:
 
-        task = self.get_task(task_id)
+        task = self.require_task(task_id)
 
-        membership = self.require_task_access(
+        membership = self.require_task_member(
             task,
-            current_user,
+            actor,
         )
 
         if (
-            current_user.role != UserRole.ADMIN
+            actor.role != UserRole.ADMIN
             and membership.project_role == ProjectRole.MEMBER
         ):
-            if task.assignee_id != current_user.id:
-                raise ForbiddenError(
-                    code="TASK_MOVE_FORBIDDEN",
-                    message="MEMBER chỉ được đổi trạng thái task mình phụ trách.",
+            if task.assignee_id != actor.id:
+                raise api_error(
+                    403,
+                    "TASK_MOVE_FORBIDDEN",
+                    "MEMBER chỉ được đổi trạng thái task mình phụ trách.",
                 )
 
         current_status = task.status
@@ -359,22 +370,33 @@ class TaskService:
             "DONE": 3,
         }
 
+        if (
+            current_status not in status_order
+            or new_status not in status_order
+        ):
+            raise api_error(
+                400,
+                "TASK_INVALID_STATUS",
+                "Trạng thái task không hợp lệ.",
+            )
+
         difference = abs(
             status_order[new_status]
             - status_order[current_status]
         )
 
         if difference > 1:
-            raise BadRequestError(
-                code="TASK_INVALID_TRANSITION",
-                message=(
+            raise api_error(
+                400,
+                "TASK_INVALID_TRANSITION",
+                (
                     f"Không thể chuyển task từ "
-                    f"{current_status} sang {new_status}."
+                    f"{current_status} sang "
+                    f"{new_status}."
                 ),
             )
 
         task.status = new_status
-
 
         if new_status == "DONE":
             task.completed_at = datetime.now(
@@ -394,24 +416,25 @@ class TaskService:
             self.db.rollback()
             raise
 
-
     def delete(
         self,
         task_id: uuid.UUID,
-        current_user: User,
+        actor: User,
     ) -> None:
 
-        task = self.get_task(task_id)
+        task = self.require_task(task_id)
 
-        self.require_manager(
+        self.project_service.require_manager(
             task.project_id,
-            current_user,
+            actor,
         )
 
         try:
-            self.tasks.delete(task)
+            self.repo.delete(task)
+
             self.db.commit()
 
         except Exception:
             self.db.rollback()
             raise
+

@@ -20,7 +20,10 @@ from app.schemas.user import UserResponse
 from app.services import AuthService
 
 
-router = APIRouter()
+router = APIRouter(
+    prefix="/auth",
+    tags=["Authentication"],
+)
 
 
 @router.post(

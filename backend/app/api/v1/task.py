@@ -1,6 +1,6 @@
 import uuid
 
-from fastapi import APIRouter, status
+from fastapi import APIRouter, Query, status
 
 from app.core.deps import CurrentUser, DbSession
 from app.schemas.task import (
@@ -22,16 +22,56 @@ router = APIRouter(
     "",
     response_model=list[TaskResponse],
 )
+# def list_tasks(
+#     project_id: uuid.UUID,
+#     db: DbSession,
+#     current_user: CurrentUser,
+# ):
+#     service = TaskService(db)
+
+#     return service.list_tasks(
+#         project_id=project_id,
+#         actor=current_user,
+#     )
 def list_tasks(
     project_id: uuid.UUID,
     db: DbSession,
     current_user: CurrentUser,
+    q: str | None = Query(
+        default=None,
+        description="Tìm kiếm theo title hoặc description",
+    ),
+    status_filter: str | None = Query(
+        default=None,
+        alias="status",
+    ),
+    priority: str | None = None,
+    assignee: uuid.UUID | None = None,
+    sprint: uuid.UUID | None = None,
+    overdue: bool = False,
+    page: int = Query(
+        default=1,
+        ge=1,
+    ),
+    size: int = Query(
+        default=20,
+        ge=1,
+        le=100,
+    ),
 ):
     service = TaskService(db)
 
     return service.list_tasks(
         project_id=project_id,
-        current_user=current_user,
+        actor=current_user,
+        q=q,
+        status=status_filter,
+        priority=priority,
+        assignee_id=assignee,
+        sprint_id=sprint,
+        overdue=overdue,
+        page=page,
+        size=size,
     )
 
 @router.get(
@@ -47,7 +87,7 @@ def get_task(
 
     return service.get(
         task_id=task_id,
-        current_user=current_user,
+        actor=current_user,
     )
 
 @router.post(
@@ -64,7 +104,7 @@ def create_task(
 
     return service.create(
         payload=payload,
-        current_user=current_user,
+        actor=current_user,
     )
 
 @router.put(
@@ -82,7 +122,7 @@ def update_task(
     return service.update(
         task_id=task_id,
         payload=payload,
-        current_user=current_user,
+        actor=current_user,
     )
 
 @router.patch(
@@ -100,7 +140,7 @@ def assign_task(
     return service.assign(
         task_id=task_id,
         payload=payload,
-        current_user=current_user,
+        actor=current_user,
     )
 
 @router.patch(
@@ -118,7 +158,7 @@ def move_task(
     return service.move(
         task_id=task_id,
         payload=payload,
-        current_user=current_user,
+        actor=current_user,
     )
 
 
@@ -135,7 +175,7 @@ def delete_task(
 
     service.delete(
         task_id=task_id,
-        current_user=current_user,
+        actor=current_user,
     )
 
     return None
