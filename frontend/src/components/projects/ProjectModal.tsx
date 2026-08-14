@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { X, FolderPlus, Edit3, Globe, Lock } from 'lucide-react';
+import { X, FolderPlus, Edit3 } from 'lucide-react';
 import { api } from '../../lib/api';
-import type { Project, ProjectVisibility } from '../../types/api';
+import type { Project } from '../../types/api';
 
 import { useToast } from '../../context/ToastContext';
 
@@ -21,7 +21,6 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
   const { showSuccess } = useToast();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [visibility, setVisibility] = useState<ProjectVisibility>('PUBLIC');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -32,11 +31,9 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
       if (project) {
         setName(project.name);
         setDescription(project.description || '');
-        setVisibility(project.visibility || 'PUBLIC');
       } else {
         setName('');
         setDescription('');
-        setVisibility('PUBLIC');
       }
       setError(null);
     }
@@ -55,14 +52,12 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
         res = await api.put<Project>(`/projects/${project.id}`, {
           name: name.trim(),
           description: description.trim() || null,
-          visibility,
         });
         showSuccess('Cập nhật thông tin dự án thành công!');
       } else {
         res = await api.post<Project>('/projects', {
           name: name.trim(),
           description: description.trim() || null,
-          visibility,
         });
         showSuccess('Tạo dự án mới thành công!');
       }
@@ -133,43 +128,6 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
               placeholder="Brief project goal or assignment topic..."
               className="w-full bg-gray-900/80 border border-gray-700/60 rounded-xl px-4 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500 transition-colors"
             />
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-gray-300 mb-1.5">Visibility Access</label>
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={() => setVisibility('PUBLIC')}
-                className={`p-3 rounded-xl border flex items-center gap-2.5 text-left transition-all ${
-                  visibility === 'PUBLIC'
-                    ? 'bg-indigo-600/20 border-indigo-500 text-white'
-                    : 'bg-gray-900/60 border-gray-800 text-gray-400 hover:text-gray-200'
-                }`}
-              >
-                <Globe className="w-4 h-4 text-indigo-400 shrink-0" />
-                <div>
-                  <p className="text-xs font-bold">PUBLIC</p>
-                  <p className="text-[10px] text-gray-400">Accessible by workspace members</p>
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setVisibility('PRIVATE')}
-                className={`p-3 rounded-xl border flex items-center gap-2.5 text-left transition-all ${
-                  visibility === 'PRIVATE'
-                    ? 'bg-indigo-600/20 border-indigo-500 text-white'
-                    : 'bg-gray-900/60 border-gray-800 text-gray-400 hover:text-gray-200'
-                }`}
-              >
-                <Lock className="w-4 h-4 text-amber-400 shrink-0" />
-                <div>
-                  <p className="text-xs font-bold">PRIVATE</p>
-                  <p className="text-[10px] text-gray-400">Restricted to added members</p>
-                </div>
-              </button>
-            </div>
           </div>
 
           <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-800">

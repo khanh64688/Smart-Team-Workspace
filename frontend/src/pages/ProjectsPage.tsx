@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Users, Calendar, ArrowRight, FolderKanban, Edit3, Lock, Globe, Trash2, ShieldCheck } from 'lucide-react';
+import { Plus, Users, Calendar, ArrowRight, FolderKanban, Edit3, Trash2, ShieldCheck } from 'lucide-react';
 import type { Project } from '../types/api';
 import { useAuth } from '../context/AuthContext';
 import { ProjectModal } from '../components/projects/ProjectModal';
@@ -175,27 +175,6 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({
                       }`}
                     >
                       {project.status}
-                    </span>
-
-                    <span
-                      className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 ${
-                        project.visibility === 'PUBLIC'
-                          ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20'
-                          : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-                      }`}
-                      title={project.visibility === 'PUBLIC' ? 'Public project accessible by workspace' : 'Private project restricted to members'}
-                    >
-                      {project.visibility === 'PUBLIC' ? (
-                        <>
-                          <Globe className="w-3 h-3 text-indigo-400" />
-                          PUBLIC
-                        </>
-                      ) : (
-                        <>
-                          <Lock className="w-3 h-3 text-amber-400" />
-                          PRIVATE
-                        </>
-                      )}
                     </span>
                   </div>
 

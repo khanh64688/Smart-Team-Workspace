@@ -39,7 +39,6 @@ export interface AccessTokenResponse {
 }
 
 export type ProjectStatus = 'ACTIVE' | 'CLOSED' | 'ARCHIVED';
-export type ProjectVisibility = 'PUBLIC' | 'PRIVATE';
 export type ProjectRole = 'OWNER' | 'MANAGER' | 'MEMBER';
 
 export interface ProjectMember {
@@ -73,7 +72,6 @@ export interface Project {
   name: string;
   description?: string;
   status: ProjectStatus;
-  visibility?: ProjectVisibility;
   owner_id: string;
   owner?: User;
   members?: ProjectMember[];
