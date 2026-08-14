@@ -26,7 +26,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
   currentSprintId,
   onTaskCreated,
 }) => {
-  const { showSuccess } = useToast();
+  const { showSuccess, showError } = useToast();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState<TaskPriority>('MEDIUM');
