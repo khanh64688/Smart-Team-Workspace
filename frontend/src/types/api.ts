@@ -1,13 +1,29 @@
 export type UserRole = 'ADMIN' | 'PM' | 'MEMBER';
 
-// Toàn bộ khoá chính phía backend là UUID (chuỗi), không phải số tự tăng.
 export interface User {
   id: string;
   email: string;
   full_name: string;
   role: UserRole;
   is_active: boolean;
+  avatar?: string | null;
   created_at: string;
+  updated_at?: string;
+}
+
+export interface AdminUserCreateRequest {
+  email: string;
+  password: string;
+  full_name: string;
+  role?: UserRole;
+}
+
+export interface UserRoleUpdateRequest {
+  role: UserRole;
+}
+
+export interface UserActiveUpdateRequest {
+  is_active: boolean;
 }
 
 export interface TokenPair {
@@ -23,13 +39,33 @@ export interface AccessTokenResponse {
 }
 
 export type ProjectStatus = 'ACTIVE' | 'CLOSED' | 'ARCHIVED';
+export type ProjectVisibility = 'PUBLIC' | 'PRIVATE';
+export type ProjectRole = 'OWNER' | 'MANAGER' | 'MEMBER';
 
 export interface ProjectMember {
-  id?: string;
   user_id: string;
-  project_id: string;
-  role?: string;
-  user: User;
+  project_id?: string;
+  project_role: ProjectRole;
+  can_config?: boolean;
+  joined_at?: string;
+  user?: User;
+}
+
+export interface MemberOut {
+  user_id: string;
+  full_name: string;
+  email: string;
+  project_role: ProjectRole;
+  can_config?: boolean;
+  joined_at: string;
+}
+
+export interface MemberConfigUpdate {
+  can_config: boolean;
+}
+
+export interface MemberRoleUpdate {
+  project_role: ProjectRole;
 }
 
 export interface Project {
@@ -37,21 +73,12 @@ export interface Project {
   name: string;
   description?: string;
   status: ProjectStatus;
+  visibility?: ProjectVisibility;
   owner_id: string;
   owner?: User;
   members?: ProjectMember[];
   created_at: string;
   updated_at?: string;
-}
-
-/** GET /projects trả về bọc phân trang, không phải mảng trần. */
-export interface Paginated<T> {
-  data: T[];
-  meta: {
-    page: number;
-    size: number;
-    total: number;
-  };
 }
 
 export type SprintStatus = 'PLANNED' | 'ACTIVE' | 'CLOSED';
@@ -64,17 +91,18 @@ export interface Sprint {
   end_date: string;
   status: SprintStatus;
   project_id: string;
-  created_at: string;
+}
+
+export interface SprintUpdate {
+  name?: string;
+  goal?: string;
+  start_date?: string;
+  end_date?: string;
+  status?: SprintStatus;
 }
 
 export type TaskStatus = 'TODO' | 'IN_PROGRESS' | 'REVIEW' | 'DONE';
 export type TaskPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
-
-/** Chỉ cần id và tên để hiển thị người phụ trách trên thẻ Kanban. */
-export interface TaskAssignee {
-  id: string;
-  full_name: string;
-}
 
 export interface Task {
   id: string;
@@ -82,25 +110,34 @@ export interface Task {
   description?: string;
   status: TaskStatus;
   priority: TaskPriority;
-  // Backend đặt tên là due_date, không phải deadline.
-  due_date?: string | null;
-  assignee_id?: string | null;
-  assignee?: TaskAssignee | null;
-  sprint_id?: string | null;
+  due_date?: string;
+  assignee_id?: string;
+  assignee?: User;
+  sprint_id?: string;
   project_id: string;
   position?: number;
-  // Trường suy ra ở backend (due_date đã qua và chưa DONE), không phải cột DB.
   is_overdue?: boolean;
   comments_count?: number;
   created_at: string;
-  completed_at?: string | null;
+  completed_at?: string;
+}
+
+export interface TaskAssign {
+  assignee_id?: string | null;
+}
+
+export interface TaskMove {
+  status: TaskStatus;
+  position?: number;
+  sprint_id?: string | null;
 }
 
 export interface Comment {
   id: string;
   content: string;
-  user_id: string;
-  user: User;
+  author_id?: string | null;
+  user_id?: string;
+  user?: User;
   task_id: string;
   created_at: string;
 }
@@ -132,3 +169,4 @@ export interface DashboardMetrics {
   by_priority: Record<TaskPriority, number>;
   by_assignee: Array<{ user_id: string; user_name: string; count: number }>;
 }
+

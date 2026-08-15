@@ -218,3 +218,22 @@ class UserService:
         except Exception:
             self.db.rollback()
             raise
+
+    def soft_delete_user(
+        self,
+        *,
+        actor_id: uuid.UUID,
+        target_user_id: uuid.UUID,
+    ) -> User:
+        """
+        Soft-delete tài khoản.
+
+        Không xóa record khỏi database.
+        Tài khoản được chuyển sang is_active=False để giữ
+        lịch sử task, comment và các quan hệ dữ liệu.
+        """
+        return self.set_active(
+            actor_id=actor_id,
+            target_user_id=target_user_id,
+            is_active=False,
+        )

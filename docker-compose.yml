@@ -1,67 +1,45 @@
-# Không đặt container_name / tên volume / tên network cố định: chúng là duy nhất
-# trên toàn máy Docker nên dễ đụng project khác. Compose tự thêm tiền tố project.
-name: smart-team-workspace
-
 services:
   db:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-stw}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-stw}
-      POSTGRES_DB: ${POSTGRES_DB:-stw}
-    volumes:
-      - pgdata:/var/lib/postgresql/data
+      POSTGRES_USER: ${POSTGRES_USER:-twl}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-twlpass}
+      POSTGRES_DB: ${POSTGRES_DB:-smart_team_db}
     ports:
-      - '${POSTGRES_PORT:-5432}:5432'
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-stw} -d ${POSTGRES_DB:-stw}']
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-twl} -d ${POSTGRES_DB:-smart_team_db}"]
       interval: 5s
       timeout: 5s
       retries: 10
     restart: unless-stopped
 
   backend:
-    build:
-      context: ./backend
-      target: dev
+    build: ./backend
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    ports:
+      - "8000:8000"
     environment:
-      # Backend dùng psycopg 3 (gói `psycopg`), KHÔNG phải psycopg2.
-      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://${POSTGRES_USER:-stw}:${POSTGRES_PASSWORD:-stw}@db:5432/${POSTGRES_DB:-stw}}
-      SECRET_KEY: ${SECRET_KEY:-doi-secret-nay-truoc-khi-deploy}
-      APP_ENV: ${APP_ENV:-development}
-      API_V1_PREFIX: ${API_V1_PREFIX:-/api/v1}
-      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:${FRONTEND_PORT:-5173},http://127.0.0.1:${FRONTEND_PORT:-5173}}
-      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-15}
-      REFRESH_TOKEN_EXPIRE_DAYS: ${REFRESH_TOKEN_EXPIRE_DAYS:-7}
-      AI_PROVIDER: ${AI_PROVIDER:-none}
-      AI_API_KEY: ${AI_API_KEY:-}
-      AI_MODEL: ${AI_MODEL:-gemini-3.1-flash-lite}
-    volumes:
-      - ./backend:/app
+      # vi cái này mò mãi mới ra :v
+      # - DATABASE_URL=postgresql://${POSTGRES_USER:-twl}:${POSTGRES_PASSWORD:-twlpass}@db:5432/${POSTGRES_DB:-smart_team_db}
+      - DATABASE_URL=postgresql+psycopg://${POSTGRES_USER:-twl}:${POSTGRES_PASSWORD:-twlpass}@db:5432/${POSTGRES_DB:-smart_team_db}
+      - SECRET_KEY=${SECRET_KEY:-dev_secret_key_change_me_in_production}
+      - AI_API_KEY=${AI_API_KEY:-}
+      - AI_PROVIDER=${AI_PROVIDER:-gemini}
     depends_on:
       db:
         condition: service_healthy
-    ports:
-      - '${BACKEND_PORT:-8000}:8000'
-    restart: unless-stopped
+    volumes:
+      - ./backend:/app
 
   frontend:
-    build:
-      context: ./frontend
-      target: dev
-    environment:
-      VITE_API_URL: ${VITE_API_URL:-http://localhost:${BACKEND_PORT:-8000}/api/v1}
-      # Đích của dev proxy, chạy trong container nên phải là service name.
-      VITE_PROXY_TARGET: ${VITE_PROXY_TARGET:-http://backend:8000}
-    volumes:
-      - ./frontend:/app
-      # Giữ node_modules của container, không để bind mount ở trên che mất.
-      - /app/node_modules
+    build: ./frontend
+    ports:
+      - "5173:80"
     depends_on:
       - backend
-    ports:
-      - '${FRONTEND_PORT:-5173}:5173'
-    restart: unless-stopped
 
 volumes:
-  pgdata:
+  postgres_data:

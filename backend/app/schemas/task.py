@@ -1,74 +1,187 @@
-from __future__ import annotations
-
 import uuid
-from datetime import UTC, datetime
-from typing import Literal
+from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, computed_field
-
-TaskStatus = Literal["TODO", "IN_PROGRESS", "REVIEW", "DONE"]
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
-class TaskAssignee(BaseModel):
-    """Thông tin tối thiểu để hiển thị người phụ trách trên thẻ Kanban."""
+TASK_STATUSES = {
+    "TODO",
+    "IN_PROGRESS",
+    "REVIEW",
+    "DONE",
+}
 
-    model_config = ConfigDict(from_attributes=True)
+TASK_PRIORITIES = {
+    "LOW",
+    "MEDIUM",
+    "HIGH",
+    "URGENT",
+}
 
-    id: uuid.UUID
-    full_name: str
+
+class TaskCreate(BaseModel):
+    project_id: uuid.UUID
+    sprint_id: uuid.UUID | None = None
+
+    title: str = Field(..., min_length=1, max_length=255)
+    description: str | None = None
+
+    assignee_id: uuid.UUID | None = None
+
+    status: str = "TODO"
+    priority: str = "MEDIUM"
+
+    due_date: datetime | None = None
+    position: int = Field(default=65536, ge=0)
+
+    @field_validator("title")
+    @classmethod
+    def validate_title(cls, value: str) -> str:
+        value = value.strip()
+
+        if not value:
+            raise ValueError("Title không được để trống.")
+
+        return value
+
+    @field_validator("status")
+    @classmethod
+    def validate_status(cls, value: str) -> str:
+        value = value.strip().upper()
+
+        if value not in TASK_STATUSES:
+            raise ValueError(
+                f"Status không hợp lệ: {value}"
+            )
+
+        return value
+
+    @field_validator("priority")
+    @classmethod
+    def validate_priority(cls, value: str) -> str:
+        value = value.strip().upper()
+
+        if value not in TASK_PRIORITIES:
+            raise ValueError(
+                f"Priority không hợp lệ: {value}"
+            )
+
+        return value
+
+    @field_validator("due_date")
+    @classmethod
+    def validate_due_date(
+        cls,
+        value: datetime | None,
+    ) -> datetime | None:
+        if value is not None and value.tzinfo is None:
+            raise ValueError(
+                "due_date phải chứa timezone."
+            )
+
+        return value
+
+
+class TaskUpdate(BaseModel):
+    sprint_id: uuid.UUID | None = None
+
+    title: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=255,
+    )
+
+    description: str | None = None
+    priority: str | None = None
+    due_date: datetime | None = None
+
+    @field_validator("title")
+    @classmethod
+    def validate_title(
+        cls,
+        value: str | None,
+    ) -> str | None:
+        if value is None:
+            return None
+
+        value = value.strip()
+
+        if not value:
+            raise ValueError("Title không được để trống.")
+
+        return value
+
+    @field_validator("priority")
+    @classmethod
+    def validate_priority(
+        cls,
+        value: str | None,
+    ) -> str | None:
+        if value is None:
+            return None
+
+        value = value.strip().upper()
+
+        if value not in TASK_PRIORITIES:
+            raise ValueError(
+                f"Priority không hợp lệ: {value}"
+            )
+
+        return value
+
+    @field_validator("due_date")
+    @classmethod
+    def validate_due_date(
+        cls,
+        value: datetime | None,
+    ) -> datetime | None:
+        if value is not None and value.tzinfo is None:
+            raise ValueError(
+                "due_date phải chứa timezone."
+            )
+
+        return value
+
+
+class TaskAssign(BaseModel):
+    assignee_id: uuid.UUID | None = None
+
+
+class TaskMove(BaseModel):
+    status: str
+
+    @field_validator("status")
+    @classmethod
+    def validate_status(cls, value: str) -> str:
+        value = value.strip().upper()
+
+        if value not in TASK_STATUSES:
+            raise ValueError(
+                f"Status không hợp lệ: {value}"
+            )
+
+        return value
 
 
 class TaskResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
+
     project_id: uuid.UUID
-    sprint_id: uuid.UUID | None = None
+    sprint_id: uuid.UUID | None
 
     title: str
-    description: str | None = None
+    description: str | None
+
+    assignee_id: uuid.UUID | None
+
     status: str
     priority: str
 
-    due_date: datetime | None = None
-    assignee_id: uuid.UUID | None = None
-    assignee: TaskAssignee | None = None
+    due_date: datetime | None
+    position: int
 
-    position: int = 0
     created_at: datetime
-    completed_at: datetime | None = None
+    completed_at: datetime | None
 
-    # Không có sẵn trên model Task, route tự điền sau khi đếm.
-    comments_count: int = 0
-
-    @computed_field  # type: ignore[prop-decorator]
-    @property
-    def is_overdue(self) -> bool:
-        """
-        Quá hạn là trạng thái SUY RA, không phải cột trong database.
-
-        Lưu thành cột thì mỗi ngày trôi qua lại phải chạy job cập nhật,
-        và chỉ cần quên một lần là số liệu sai.
-        """
-        if self.due_date is None or self.status == "DONE":
-            return False
-
-        return self.due_date < datetime.now(UTC)
-
-
-class TaskMoveRequest(BaseModel):
-    """Payload khi kéo thả một thẻ sang cột khác trên bảng Kanban."""
-
-    status: TaskStatus
-
-    # Vị trí trong cột đích. Frontend chưa gửi, nhưng để sẵn thì thao tác
-    # sắp xếp lại trong cùng một cột không cần đổi endpoint.
-    position: int | None = None
-
-
-__all__ = [
-    "TaskAssignee",
-    "TaskMoveRequest",
-    "TaskResponse",
-    "TaskStatus",
-]

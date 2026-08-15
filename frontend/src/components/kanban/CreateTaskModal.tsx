@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, PlusCircle } from 'lucide-react';
-import type { Task, TaskPriority, TaskStatus, User } from '../../types/api';
+import type { Task, TaskPriority, TaskStatus, User, Sprint } from '../../types/api';
 import { api } from '../../lib/api';
+
+import { useToast } from '../../context/ToastContext';
 
 interface CreateTaskModalProps {
   isOpen: boolean;
@@ -9,6 +11,11 @@ interface CreateTaskModalProps {
   projectId: string;
   initialStatus: TaskStatus;
   members: User[];
+  sprints?: Sprint[];
+  currentSprintId?: string;
+  canConfig?: boolean;
+  canManageMembers?: boolean;
+  currentUserId?: string;
   onTaskCreated: (task: Task) => void;
 }
 
@@ -18,53 +25,90 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
   projectId,
   initialStatus,
   members,
+  sprints = [],
+  currentSprintId,
+  canConfig = true,
+  canManageMembers = false,
+  currentUserId,
   onTaskCreated,
 }) => {
+  const { showSuccess, showError } = useToast();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState<TaskPriority>('MEDIUM');
   const [status, setStatus] = useState<TaskStatus>(initialStatus);
   const [assigneeId, setAssigneeId] = useState<string>('');
-  const [deadline, setDeadline] = useState('');
+  const [sprintId, setSprintId] = useState<string>('');
+  const [dueDate, setDueDate] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Sync status and sprint when props change
+  useEffect(() => {
+    setStatus(initialStatus);
+  }, [initialStatus]);
+
+  useEffect(() => {
+    if (currentSprintId && currentSprintId !== 'ALL') {
+      setSprintId(currentSprintId);
+    } else {
+      setSprintId('');
+    }
+  }, [currentSprintId, isOpen]);
 
   if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!canConfig) {
+      const msg = 'Bạn không có quyền tạo công việc trong dự án này (can_config = false).';
+      setError(msg);
+      showError(msg);
+      return;
+    }
+    if (!canManageMembers && assigneeId && assigneeId !== currentUserId) {
+      const msg = 'MEMBER chỉ được phép tự gán task cho chính mình hoặc để trống.';
+      setError(msg);
+      showError(msg);
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
     try {
-      const res = await api.post<Task>('/tasks/', {
-        title,
-        description,
+      const payload: Record<string, unknown> = {
+        project_id: projectId,
+        sprint_id: sprintId || null,
+        title: title.trim(),
+        description: description.trim() || null,
         priority,
         status,
-        project_id: projectId,
-        assignee_id: assigneeId || undefined,
-        due_date: deadline || undefined,
-      });
-      onTaskCreated(res.data);
-      onClose();
-    } catch {
-      // Fallback mock task creation if backend API route for task is not yet mounted
-      const mockNewTask: Task = {
-        id: `local-${Date.now()}`,
-        title,
-        description,
-        status,
-        priority,
-        project_id: projectId,
-        assignee_id: assigneeId || undefined,
-        assignee: members.find((m) => m.id === assigneeId),
-        due_date: deadline || undefined,
-        comments_count: 0,
-        created_at: new Date().toISOString(),
+        assignee_id: assigneeId || null,
       };
-      onTaskCreated(mockNewTask);
+
+      if (dueDate) {
+        payload.due_date = new Date(dueDate + 'T23:59:59Z').toISOString();
+      }
+
+      const res = await api.post<Task>('/tasks', payload);
+      showSuccess('Tạo công việc mới thành công!');
+      onTaskCreated(res.data);
+      // Reset form
+      setTitle('');
+      setDescription('');
+      setPriority('MEDIUM');
+      setAssigneeId('');
+      setDueDate('');
       onClose();
+    } catch (err: any) {
+      const msg =
+        err.response?.data?.error?.message ||
+        (typeof err.response?.data?.detail === 'string' ? err.response.data.detail : null) ||
+        err.response?.data?.message ||
+        'Không thể tạo công việc. Vui lòng kiểm tra lại quyền truy cập.';
+      setError(msg);
+      showError(msg);
     } finally {
       setLoading(false);
     }
@@ -147,30 +191,52 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-gray-300 mb-1.5">Assignee</label>
+              <label className="block text-xs font-semibold text-gray-300 mb-1.5">
+                Assignee {!canManageMembers && '(Self-assign only)'}
+              </label>
               <select
                 value={assigneeId}
                 onChange={(e) => setAssigneeId(e.target.value)}
                 className="w-full bg-gray-900/80 border border-gray-700/60 text-white rounded-xl px-3.5 py-2.5 text-xs focus:outline-none focus:border-indigo-500"
               >
                 <option value="">Unassigned</option>
-                {members.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.full_name}
-                  </option>
-                ))}
+                {members.map((m) => {
+                  const isMe = currentUserId === m.id;
+                  if (!canManageMembers && !isMe) return null;
+                  return (
+                    <option key={m.id} value={m.id}>
+                      {m.full_name} {isMe ? '(Tôi)' : ''}
+                    </option>
+                  );
+                })}
               </select>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-gray-300 mb-1.5">Deadline</label>
-              <input
-                type="date"
-                value={deadline}
-                onChange={(e) => setDeadline(e.target.value)}
-                className="w-full bg-gray-900/80 border border-gray-700/60 text-white rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:border-indigo-500"
-              />
+              <label className="block text-xs font-semibold text-gray-300 mb-1.5">Target Sprint</label>
+              <select
+                value={sprintId}
+                onChange={(e) => setSprintId(e.target.value)}
+                className="w-full bg-gray-900/80 border border-gray-700/60 text-white rounded-xl px-3.5 py-2.5 text-xs focus:outline-none focus:border-indigo-500"
+              >
+                <option value="">No Sprint (Backlog)</option>
+                {sprints.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name} ({s.status})
+                  </option>
+                ))}
+              </select>
             </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-gray-300 mb-1.5">Due Date</label>
+            <input
+              type="date"
+              value={dueDate}
+              onChange={(e) => setDueDate(e.target.value)}
+              className="w-full bg-gray-900/80 border border-gray-700/60 text-white rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:border-indigo-500"
+            />
           </div>
 
           <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-800">
@@ -184,7 +250,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
             <button
               type="submit"
               disabled={loading}
-              className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl text-xs shadow-lg shadow-indigo-600/30"
+              className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl text-xs shadow-lg shadow-indigo-600/30 disabled:opacity-60"
             >
               {loading ? 'Creating...' : 'Create Task'}
             </button>

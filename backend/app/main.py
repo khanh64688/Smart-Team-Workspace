@@ -17,9 +17,10 @@ app = FastAPI(
 )
 
 
-# Phải add trước khi xử lý request: frontend gọi backend từ origin khác
-# (5173 → 8000) nên trình duyệt gửi preflight OPTIONS trước mỗi request
-# POST/PUT có Content-Type: application/json.
+# Chạy bằng docker-compose thì frontend đi qua nginx proxy (same-origin) nên
+# không cần CORS; middleware này để dành cho `npm run dev` ở cổng 5173 gọi
+# thẳng backend 8000 — khi đó trình duyệt gửi preflight OPTIONS trước mỗi
+# request POST/PUT có Content-Type: application/json.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origin_list,
@@ -32,10 +33,7 @@ app.add_middleware(
 register_exception_handlers(app)
 
 
-app.include_router(
-    api_router,
-    prefix=settings.api_v1_prefix,
-)
+app.include_router(api_router)
 
 
 @app.get(

@@ -10,6 +10,8 @@ from app.services.llm_client import (
     ToolCall,
 )
 from app.services.user_service import UserService
+from app.services.project import ProjectService
+from app.services.task import TaskService
 
 
 __all__ = [
@@ -21,4 +23,6 @@ __all__ = [
     "ToolCall",
     "TokenPair",
     "UserService",
+    "ProjectService",
+    "TaskService",
 ]

@@ -7,6 +7,7 @@ from fastapi import (
     APIRouter,
     Depends,
     Query,
+    status,
 )
 
 from app.core.deps import (
@@ -27,11 +28,15 @@ from app.schemas.user import (
     UserRoleUpdateRequest,
     UserSearchResponse,
     UserUpdateRequest,
+    AdminUserCreateRequest,
 )
-from app.services import UserService
+from app.services import AuthService, UserService
 
 
-router = APIRouter()
+router = APIRouter(
+    prefix="/users",
+    tags=["Users"],
+)
 
 
 AdminUser = Annotated[
@@ -40,6 +45,49 @@ AdminUser = Annotated[
         require_role(UserRole.ADMIN)
     ),
 ]
+
+
+@router.post(
+    "",
+    response_model=UserResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Admin tạo tài khoản",
+    responses={
+        401: {
+            "model": ErrorResponse,
+            "description": "Chưa đăng nhập.",
+        },
+        403: {
+            "model": ErrorResponse,
+            "description": "Chỉ ADMIN được thực hiện.",
+        },
+        409: {
+            "model": ErrorResponse,
+            "description": "Email đã tồn tại.",
+        },
+        422: {
+            "model": ErrorResponse,
+            "description": "Dữ liệu không hợp lệ.",
+        },
+    },
+)
+def create_user_by_admin(
+    payload: AdminUserCreateRequest,
+    _current_admin: AdminUser,
+    db: DbSession,
+) -> UserResponse:
+    """
+    ADMIN tạo tài khoản mới và có thể chọn role ban đầu.
+    """
+    user = AuthService(db).create_user_by_admin(
+        email=str(payload.email),
+        full_name=payload.full_name,
+        password=payload.password,
+        role=payload.role,
+        is_active=payload.is_active,
+    )
+
+    return UserResponse.model_validate(user)
 
 
 @router.get(
@@ -308,3 +356,44 @@ def set_user_active(
     )
 
     return UserResponse.model_validate(user)
+
+
+@router.delete(
+    "/{user_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Xóa tài khoản",
+    responses={
+        400: {
+            "model": ErrorResponse,
+            "description": "Admin không thể tự xóa chính mình.",
+        },
+        401: {
+            "model": ErrorResponse,
+            "description": "Chưa đăng nhập.",
+        },
+        403: {
+            "model": ErrorResponse,
+            "description": "Chỉ ADMIN được thực hiện.",
+        },
+        404: {
+            "model": ErrorResponse,
+            "description": "Không tìm thấy user.",
+        },
+    },
+)
+def delete_user(
+    user_id: uuid.UUID,
+    current_admin: AdminUser,
+    db: DbSession,
+) -> None:
+    """
+    Soft-delete tài khoản.
+
+    Không xóa record khỏi database.
+    """
+    UserService(db).soft_delete_user(
+        actor_id=current_admin.id,
+        target_user_id=user_id,
+    )
+
+    return None

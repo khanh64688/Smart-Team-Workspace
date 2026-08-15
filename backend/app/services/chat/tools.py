@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from app.models.task import Task
 from app.models.user import User
 from app.repositories.sprint import SprintRepository
-from app.repositories.task import TaskRepository, now_utc
+from app.repositories.task_insights import TaskInsightsRepository, now_utc
 
 # Số dòng tối đa nhồi vào prompt cho mỗi tool. Một dự án 300 task mà đưa
 # hết vào thì vừa tốn token vừa làm mô hình trả lời lan man.
@@ -32,8 +32,8 @@ class ToolContext:
     project_id: uuid.UUID
 
     @property
-    def tasks(self) -> TaskRepository:
-        return TaskRepository(self.db)
+    def tasks(self) -> TaskInsightsRepository:
+        return TaskInsightsRepository(self.db)
 
     @property
     def sprints(self) -> SprintRepository:

@@ -24,8 +24,6 @@ class ProjectRepository:
             stmt = stmt.where(Project.name.ilike(f"%{q.strip()}%"))
         if status:
             stmt = stmt.where(Project.status == status)
-        else:
-            stmt = stmt.where(Project.status == ProjectStatus.ACTIVE)
         sort_columns = {"name": Project.name.asc(), "-name": Project.name.desc(), "created_at": Project.created_at.asc(), "-created_at": Project.created_at.desc()}
         stmt = stmt.order_by(sort_columns.get(sort, Project.created_at.desc()))
         total = self.db.scalar(select(func.count()).select_from(stmt.order_by(None).subquery())) or 0

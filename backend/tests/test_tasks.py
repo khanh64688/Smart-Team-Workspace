@@ -1,103 +1,367 @@
 import uuid
-from datetime import UTC, datetime
 
 from app.models import User, UserRole
-from app.models.task import Task
+
 
 PASSWORD = "Password123"
 
 
-def make_user(client, db_session, *, email: str, role: UserRole = UserRole.MEMBER):
-    registered = client.post(
+def make_user(
+    client,
+    db_session,
+    *,
+    email: str,
+    role: UserRole = UserRole.MEMBER,
+):
+    response = client.post(
         "/api/v1/auth/register",
-        json={"email": email, "full_name": email.split("@")[0], "password": PASSWORD, "confirm_password": PASSWORD},
+        json={
+            "email": email,
+            "full_name": email.split("@")[0],
+            "password": PASSWORD,
+            "confirm_password": PASSWORD,
+        },
     )
-    assert registered.status_code == 201, registered.text
-    user = db_session.get(User, uuid.UUID(registered.json()["id"]))
+
+    assert response.status_code == 201, response.text
+
+    user = db_session.get(
+        User,
+        uuid.UUID(response.json()["id"]),
+    )
+
+    assert user is not None
+
     user.role = role
     db_session.commit()
-    login = client.post("/api/v1/auth/login", json={"email": email, "password": PASSWORD})
-    assert login.status_code == 200, login.text
-    return user, {"Authorization": f"Bearer {login.json()['access_token']}"}
 
-
-def create_project(client, headers, name="Task Board"):
-    response = client.post("/api/v1/projects", json={"name": name, "description": "Demo"}, headers=headers)
-    assert response.status_code == 201, response.text
-    return response.json()["id"]
-
-
-def seed_task(db_session, project_id, *, status="TODO"):
-    task = Task(
-        project_id=uuid.UUID(project_id),
-        title="Kéo thẻ sang cột khác",
-        status=status,
-        priority="HIGH",
-        position=65536,
-        created_at=datetime.now(UTC),
+    login = client.post(
+        "/api/v1/auth/login",
+        json={
+            "email": email,
+            "password": PASSWORD,
+        },
     )
-    db_session.add(task)
-    db_session.commit()
-    db_session.refresh(task)
-    return task
+
+    assert login.status_code == 200, login.text
+
+    headers = {
+        "Authorization": (
+            f"Bearer {login.json()['access_token']}"
+        )
+    }
+
+    return user, headers
 
 
-def move(client, task_id, headers, status):
-    return client.patch(f"/api/v1/tasks/{task_id}/move", json={"status": status}, headers=headers)
+def create_project(
+    client,
+    headers,
+    *,
+    name: str = "Task Test Project",
+):
+    response = client.post(
+        "/api/v1/projects",
+        json={
+            "name": name,
+            "description": "Project dùng cho test task",
+        },
+        headers=headers,
+    )
+
+    assert response.status_code == 201, response.text
+
+    return response.json()
 
 
-def test_move_task_updates_status(client, db_session):
-    _, headers = make_user(client, db_session, email="pm-move@example.com", role=UserRole.PM)
-    project_id = create_project(client, headers)
-    task = seed_task(db_session, project_id)
+def add_member(
+    client,
+    headers,
+    *,
+    project_id: str,
+    user_id: uuid.UUID,
+):
+    response = client.post(
+        f"/api/v1/projects/{project_id}/members",
+        json={
+            "user_id": str(user_id),
+            "project_role": "MEMBER",
+        },
+        headers=headers,
+    )
 
-    response = move(client, task.id, headers, "IN_PROGRESS")
+    assert response.status_code == 201, response.text
 
-    assert response.status_code == 200, response.text
-    assert response.json()["status"] == "IN_PROGRESS"
-
-    db_session.refresh(task)
-    assert task.status == "IN_PROGRESS"
-
-
-def test_move_to_done_sets_completed_at_and_back_clears_it(client, db_session):
-    _, headers = make_user(client, db_session, email="pm-done@example.com", role=UserRole.PM)
-    project_id = create_project(client, headers)
-    task = seed_task(db_session, project_id)
-
-    assert move(client, task.id, headers, "DONE").status_code == 200
-    db_session.refresh(task)
-    assert task.completed_at is not None
-
-    assert move(client, task.id, headers, "IN_PROGRESS").status_code == 200
-    db_session.refresh(task)
-    assert task.completed_at is None
+    return response.json()
 
 
-def test_move_rejects_unknown_status(client, db_session):
-    _, headers = make_user(client, db_session, email="pm-status@example.com", role=UserRole.PM)
-    project_id = create_project(client, headers)
-    task = seed_task(db_session, project_id)
+def create_task(
+    client,
+    headers,
+    *,
+    project_id: str,
+    title: str = "Test Task",
+    assignee_id: uuid.UUID | None = None,
+):
+    payload = {
+        "project_id": project_id,
+        "title": title,
+        "priority": "MEDIUM",
+    }
 
-    assert move(client, task.id, headers, "ARCHIVED").status_code == 422
+    if assignee_id is not None:
+        payload["assignee_id"] = str(assignee_id)
+
+    return client.post(
+        "/api/v1/tasks",
+        json=payload,
+        headers=headers,
+    )
 
 
-def test_non_member_cannot_move_task(client, db_session):
-    _, owner_headers = make_user(client, db_session, email="pm-owner@example.com", role=UserRole.PM)
-    project_id = create_project(client, owner_headers)
-    task = seed_task(db_session, project_id)
+def test_task_auth_required(
+    client,
+):
+    response = client.get(
+        "/api/v1/tasks",
+        params={
+            "project_id": str(uuid.uuid4()),
+        },
+    )
 
-    _, outsider_headers = make_user(client, db_session, email="outsider-move@example.com")
-    response = move(client, task.id, outsider_headers, "DONE")
+    assert response.status_code == 401
+
+    assert (
+        response.json()["error"]["code"]
+        == "AUTH_CREDENTIALS_REQUIRED"
+    )
+
+
+def test_member_cannot_move_other_members_task(
+    client,
+    db_session,
+):
+    _, pm_headers = make_user(
+        client,
+        db_session,
+        email="pm-task-other@example.com",
+        role=UserRole.PM,
+    )
+
+    assignee, _ = make_user(
+        client,
+        db_session,
+        email="task-assignee@example.com",
+    )
+
+    other_member, other_headers = make_user(
+        client,
+        db_session,
+        email="task-other-member@example.com",
+    )
+
+    project = create_project(
+        client,
+        pm_headers,
+    )
+
+    project_id = project["id"]
+
+    add_member(
+        client,
+        pm_headers,
+        project_id=project_id,
+        user_id=assignee.id,
+    )
+
+    add_member(
+        client,
+        pm_headers,
+        project_id=project_id,
+        user_id=other_member.id,
+    )
+
+    task_response = create_task(
+        client,
+        pm_headers,
+        project_id=project_id,
+        assignee_id=assignee.id,
+    )
+
+    assert task_response.status_code == 201, (
+        task_response.text
+    )
+
+    task_id = task_response.json()["id"]
+
+    response = client.patch(
+        f"/api/v1/tasks/{task_id}/move",
+        json={
+            "status": "IN_PROGRESS",
+        },
+        headers=other_headers,
+    )
 
     assert response.status_code == 403
-    assert response.json()["error"]["code"] == "PROJECT_MEMBERSHIP_REQUIRED"
+
+    assert (
+        response.json()["error"]["code"]
+        == "TASK_MOVE_FORBIDDEN"
+    )
 
 
-def test_move_missing_task_returns_404(client, db_session):
-    _, headers = make_user(client, db_session, email="pm-missing@example.com", role=UserRole.PM)
+def test_member_can_move_own_task(
+    client,
+    db_session,
+):
+    _, pm_headers = make_user(
+        client,
+        db_session,
+        email="pm-own-task@example.com",
+        role=UserRole.PM,
+    )
 
-    response = move(client, uuid.uuid4(), headers, "DONE")
+    member, member_headers = make_user(
+        client,
+        db_session,
+        email="own-task-member@example.com",
+    )
 
-    assert response.status_code == 404
-    assert response.json()["error"]["code"] == "TASK_NOT_FOUND"
+    project = create_project(
+        client,
+        pm_headers,
+    )
+
+    project_id = project["id"]
+
+    add_member(
+        client,
+        pm_headers,
+        project_id=project_id,
+        user_id=member.id,
+    )
+
+    task_response = create_task(
+        client,
+        pm_headers,
+        project_id=project_id,
+        assignee_id=member.id,
+    )
+
+    assert task_response.status_code == 201, (
+        task_response.text
+    )
+
+    task_id = task_response.json()["id"]
+
+    response = client.patch(
+        f"/api/v1/tasks/{task_id}/move",
+        json={
+            "status": "IN_PROGRESS",
+        },
+        headers=member_headers,
+    )
+
+    assert response.status_code == 200, response.text
+
+    assert response.json()["status"] == "IN_PROGRESS"
+
+
+def test_assign_task_to_outsider_returns_400(
+    client,
+    db_session,
+):
+    _, pm_headers = make_user(
+        client,
+        db_session,
+        email="pm-assign@example.com",
+        role=UserRole.PM,
+    )
+
+    outsider, _ = make_user(
+        client,
+        db_session,
+        email="task-outsider@example.com",
+    )
+
+    project = create_project(
+        client,
+        pm_headers,
+    )
+
+    project_id = project["id"]
+
+    task_response = create_task(
+        client,
+        pm_headers,
+        project_id=project_id,
+    )
+
+    assert task_response.status_code == 201, (
+        task_response.text
+    )
+
+    task_id = task_response.json()["id"]
+
+    response = client.patch(
+        f"/api/v1/tasks/{task_id}/assign",
+        json={
+            "assignee_id": str(outsider.id),
+        },
+        headers=pm_headers,
+    )
+
+    assert response.status_code == 400
+
+    assert (
+        response.json()["error"]["code"]
+        == "TASK_ASSIGNEE_NOT_PROJECT_MEMBER"
+    )
+
+
+def test_todo_cannot_jump_directly_to_done(
+    client,
+    db_session,
+):
+    _, pm_headers = make_user(
+        client,
+        db_session,
+        email="pm-transition@example.com",
+        role=UserRole.PM,
+    )
+
+    project = create_project(
+        client,
+        pm_headers,
+    )
+
+    project_id = project["id"]
+
+    task_response = create_task(
+        client,
+        pm_headers,
+        project_id=project_id,
+    )
+
+    assert task_response.status_code == 201, (
+        task_response.text
+    )
+
+    task_id = task_response.json()["id"]
+
+    assert task_response.json()["status"] == "TODO"
+
+    response = client.patch(
+        f"/api/v1/tasks/{task_id}/move",
+        json={
+            "status": "DONE",
+        },
+        headers=pm_headers,
+    )
+
+    assert response.status_code == 400
+
+    assert (
+        response.json()["error"]["code"]
+        == "TASK_INVALID_TRANSITION"
+    )

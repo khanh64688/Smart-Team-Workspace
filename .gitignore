@@ -1,27 +1,47 @@
+# Environment
 .env
 .env.*
 !.env.example
 
-__pycache__/
-*.py[cod]
+# Python
 .venv/
 venv/
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+
+# Testing
 .pytest_cache/
-.ruff_cache/
-.mypy_cache/
-htmlcov/
 .coverage
 coverage.xml
+htmlcov/
+
+# Lint cache
+.ruff_cache/
+.mypy_cache/
+
+# SQLite local dev DB
 *.db
 *.sqlite3
 
-node_modules/
-dist/
-.vite/
+# Node / Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
 *.tsbuildinfo
 npm-debug.log*
 
-.vscode/
-.idea/
+# OS
 .DS_Store
 Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.suo
+*.user

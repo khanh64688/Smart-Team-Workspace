@@ -2,7 +2,7 @@ import uuid
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-
+from sqlalchemy import func, select
 from app.models.sprint import Sprint
 from app.models.task import Task
 
@@ -42,6 +42,18 @@ class SprintRepository:
         return list(
             self.db.scalars(stmt).all()
         )
+
+    def count_by_project(
+        self,
+        project_id: uuid.UUID,
+    ) -> int:
+        statement = (
+            select(func.count())
+            .select_from(Sprint)
+            .where(Sprint.project_id == project_id)
+        )
+
+        return self.db.scalar(statement) or 0
 
 
     def get_active_by_project(

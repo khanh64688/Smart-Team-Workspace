@@ -60,15 +60,22 @@ class AuthService:
         self.users = UserRepository(db)
         self.refresh_tokens = RefreshTokenRepository(db)
 
-    def register(
+    def _create_user_account(
         self,
         *,
         email: str,
         full_name: str,
         password: str,
+        role: UserRole,
+        is_active: bool = True,
+        duplicate_error_code: str,
     ) -> User:
         """
-        Đăng ký một tài khoản MEMBER mới.
+        Logic dùng chung để tạo tài khoản.
+
+        Có thể được gọi từ:
+        - register công khai;
+        - ADMIN tạo user.
         """
         normalized_email = UserRepository.normalize_email(email)
         normalized_name = full_name.strip()
@@ -83,7 +90,7 @@ class AuthService:
 
         if self.users.exists_by_email(normalized_email):
             raise ConflictError(
-                code="AUTH_EMAIL_ALREADY_EXISTS",
+                code=duplicate_error_code,
                 message="Email đã được sử dụng.",
                 details={"email": normalized_email},
             )
@@ -95,8 +102,8 @@ class AuthService:
                 email=normalized_email,
                 full_name=normalized_name,
                 password_hash=password_hash,
-                role=UserRole.MEMBER,
-                is_active=True,
+                role=role,
+                is_active=is_active,
             )
 
             self.db.commit()
@@ -104,11 +111,10 @@ class AuthService:
             return user
 
         except IntegrityError as exc:
-            # Bắt trường hợp hai request cùng đăng ký một email.
             self.db.rollback()
 
             raise ConflictError(
-                code="AUTH_EMAIL_ALREADY_EXISTS",
+                code=duplicate_error_code,
                 message="Email đã được sử dụng.",
                 details={"email": normalized_email},
             ) from exc
@@ -116,6 +122,49 @@ class AuthService:
         except Exception:
             self.db.rollback()
             raise
+
+    def create_user_by_admin(
+        self,
+        *,
+        email: str,
+        full_name: str,
+        password: str,
+        role: UserRole,
+        is_active: bool = True,
+    ) -> User:
+        """
+        Tạo tài khoản bởi ADMIN.
+
+        Việc xác minh người gọi có phải ADMIN không thuộc route dependency.
+        Service này chỉ xử lý nghiệp vụ tạo tài khoản.
+        """
+        return self._create_user_account(
+            email=email,
+            full_name=full_name,
+            password=password,
+            role=role,
+            is_active=is_active,
+            duplicate_error_code="USER_EMAIL_ALREADY_EXISTS",
+        )
+
+    def register(
+        self,
+        *,
+        email: str,
+        full_name: str,
+        password: str,
+    ) -> User:
+        """
+        Đăng ký một tài khoản MEMBER mới.
+        """
+        return self._create_user_account(
+            email=email,
+            full_name=full_name,
+            password=password,
+            role=UserRole.MEMBER,
+            is_active=True,
+            duplicate_error_code="AUTH_EMAIL_ALREADY_EXISTS",
+        )
 
     def login(
         self,
