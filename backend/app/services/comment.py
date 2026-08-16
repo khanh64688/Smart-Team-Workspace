@@ -9,6 +9,7 @@ from app.models.user import User, UserRole
 from app.repositories.comment import CommentRepository
 from app.repositories.task import TaskRepository
 from app.schemas.comment import CommentCreate, CommentUpdate
+from app.services.notification import NotificationService
 from app.services.project import ProjectService
 
 
@@ -21,6 +22,7 @@ class CommentService:
         self.repo = CommentRepository(db)
         self.task_repo = TaskRepository(db)
         self.project_service = ProjectService(db)
+        self.notification_service = NotificationService(db)
 
     def get_comments(
         self,
@@ -84,6 +86,13 @@ class CommentService:
             task_id=task_id,
             author_id=actor.id,
             content=content,
+        )
+
+        # Báo cho người phụ trách task, trừ khi chính họ vừa comment.
+        self.notification_service.notify_new_comment(
+            task,
+            actor,
+            content,
         )
 
         self.db.commit()

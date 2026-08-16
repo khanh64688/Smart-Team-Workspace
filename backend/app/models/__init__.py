@@ -10,6 +10,7 @@ from app.models.project_member import (
     ProjectRole,
 )
 from app.models.comment import Comment
+from app.models.notification import Notification, NotificationType
 from app.models.sprint import Sprint
 from app.models.task import Task
 
@@ -24,6 +25,8 @@ __all__ = [
     "ProjectMember",
     "ProjectRole",
     "Comment",
+    "Notification",
+    "NotificationType",
     "Sprint",
     "Task",
 ]

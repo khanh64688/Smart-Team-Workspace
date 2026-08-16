@@ -19,6 +19,7 @@ from app.schemas.task import (
     TaskMove,
 )
 
+from app.services.notification import NotificationService
 from app.services.project import ProjectService
 
 MAX_TASKS_PER_PROJECT = 100
@@ -34,6 +35,9 @@ class TaskService:
 
         # một user cụ thể có thuộc project hay không.
         self.project_repo = ProjectRepository(db)
+
+        # Sinh thông báo khi task được giao cho người khác.
+        self.notification_service = NotificationService(db)
 
     def require_task(
         self,
@@ -239,6 +243,14 @@ class TaskService:
         try:
             self.repo.create(task)
 
+            # Nằm trong cùng transaction với task: task lưu lỗi thì
+            # cũng không còn thông báo mồ côi.
+            self.notification_service.notify_task_assigned(
+                task,
+                assignee_id,
+                actor,
+            )
+
             self.db.commit()
             self.db.refresh(task)
 
@@ -323,9 +335,19 @@ class TaskService:
                 payload.assignee_id,
             )
 
+        previous_assignee_id = task.assignee_id
+
         task.assignee_id = payload.assignee_id
 
         try:
+            # Gán lại đúng người đang phụ trách thì không báo lại.
+            if payload.assignee_id != previous_assignee_id:
+                self.notification_service.notify_task_assigned(
+                    task,
+                    payload.assignee_id,
+                    actor,
+                )
+
             self.db.commit()
             self.db.refresh(task)
 

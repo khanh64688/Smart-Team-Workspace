@@ -6,6 +6,7 @@ from app.api.v1 import projects
 from app.api.v1 import sprint
 from app.api.v1 import task
 from app.api.v1 import comment
+from app.api.v1 import notification
 from app.api.v1 import chat
 from app.core.config import settings
 
@@ -23,6 +24,7 @@ api_router.include_router(projects.router)
 api_router.include_router(sprint.router)
 api_router.include_router(task.router)
 api_router.include_router(comment.router)
+api_router.include_router(notification.router)
 api_router.include_router(chat.router)
 
 
