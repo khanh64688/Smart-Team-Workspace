@@ -1,6 +1,6 @@
 import { UserPlus, MessageSquare, AlarmClock, AlertTriangle } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import type { Notification } from '../types/api';
+import type { Notification, NotificationType } from '../types/api';
 
 /**
  * Semantic colors for the three US-18 notification triggers.
@@ -79,11 +79,22 @@ export const NOTIFICATION_STYLES: Record<NotificationKind, NotificationStyle> = 
   },
 };
 
+const KIND_BY_TYPE: Record<NotificationType, NotificationKind> = {
+  TASK_ASSIGNED: 'assigned',
+  TASK_COMMENT: 'comment',
+  TASK_DUE_SOON: 'deadline',
+  TASK_OVERDUE: 'overdue',
+};
+
 /**
- * Backend chưa trả về `type`, nên suy ra từ title/message.
- * Khi API bổ sung field `type`, chỉ cần đọc thẳng nó và bỏ phần đoán này.
+ * Backend trả về `type` (US-18), dùng thẳng field đó.
+ * Phần đoán theo title/message chỉ còn là fallback cho thông báo cũ
+ * được tạo trước khi API có field `type`.
  */
 export const resolveNotificationKind = (item: Notification): NotificationKind => {
+  const kind = item.type ? KIND_BY_TYPE[item.type] : undefined;
+  if (kind) return kind;
+
   const text = `${item.title} ${item.message}`.toLowerCase();
 
   if (text.includes('overdue') || text.includes('quá hạn')) return 'overdue';

@@ -151,13 +151,28 @@ export interface AISummary {
   next_priorities: string[];
 }
 
+export type NotificationType =
+  | 'TASK_ASSIGNED'
+  | 'TASK_COMMENT'
+  | 'TASK_DUE_SOON'
+  | 'TASK_OVERDUE';
+
 export interface Notification {
   id: string;
+  type: NotificationType;
   title: string;
   message: string;
   is_read: boolean;
   created_at: string;
   task_id?: string;
+}
+
+export interface UnreadCountResponse {
+  unread_count: number;
+}
+
+export interface MarkAllReadResponse {
+  marked: number;
 }
 
 export interface DashboardMetrics {
