@@ -27,6 +27,19 @@ const AppContent: React.FC = () => {
 
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Nhớ trạng thái thu gọn sidebar giữa các lần tải trang.
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(
+    () => localStorage.getItem('sidebar_collapsed') === 'true'
+  );
+
+  const toggleSidebar = () => {
+    setIsSidebarCollapsed((prev) => {
+      const next = !prev;
+      localStorage.setItem('sidebar_collapsed', String(next));
+      return next;
+    });
+  };
+
   // Fetch projects whenever user logs in
   useEffect(() => {
     if (user) {
@@ -113,6 +126,7 @@ const AppContent: React.FC = () => {
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         selectedProjectName={selectedProject?.name}
+        isCollapsed={isSidebarCollapsed}
       />
 
       <div className="flex-1 flex flex-col min-w-0">
@@ -122,9 +136,15 @@ const AppContent: React.FC = () => {
           onSelectProject={handleSelectProject}
           searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}
+          isSidebarCollapsed={isSidebarCollapsed}
+          onToggleSidebar={toggleSidebar}
         />
 
-        <main className="flex-1 ml-64 overflow-y-auto">
+        <main
+          className={`flex-1 overflow-y-auto transition-all duration-300 ${
+            isSidebarCollapsed ? 'ml-16' : 'ml-64'
+          }`}
+        >
           {activeTab === 'projects' && (
             <ProjectsPage
               projects={projects}

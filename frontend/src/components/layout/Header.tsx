@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, ChevronDown, Menu } from 'lucide-react';
+import { Search, ChevronDown, Menu, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { NotificationDrawer } from '../notifications/NotificationDrawer';
 import type { Project } from '../../types/api';
 
@@ -11,6 +11,8 @@ interface HeaderProps {
   setSearchQuery: (query: string) => void;
   onSelectTask?: (taskId: string) => void;
   onToggleMobileSidebar?: () => void;
+  isSidebarCollapsed?: boolean;
+  onToggleSidebar?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -21,9 +23,15 @@ export const Header: React.FC<HeaderProps> = ({
   setSearchQuery,
   onSelectTask,
   onToggleMobileSidebar,
+  isSidebarCollapsed = false,
+  onToggleSidebar,
 }) => {
   return (
-    <header className="h-16 glass-panel border-b border-gray-800/60 sticky top-0 z-20 flex items-center justify-between px-4 sm:px-6 ml-0 lg:ml-64 transition-all duration-300">
+    <header
+      className={`h-16 glass-panel border-b border-gray-800/60 sticky top-0 z-20 flex items-center justify-between px-4 sm:px-6 ml-0 transition-all duration-300 ${
+        isSidebarCollapsed ? 'lg:ml-16' : 'lg:ml-64'
+      }`}
+    >
       {/* Left controls: Mobile menu toggle & Project selector */}
       <div className="flex items-center gap-3">
         {onToggleMobileSidebar && (
@@ -33,6 +41,16 @@ export const Header: React.FC<HeaderProps> = ({
             title="Open sidebar"
           >
             <Menu className="w-5 h-5" />
+          </button>
+        )}
+
+        {onToggleSidebar && (
+          <button
+            onClick={onToggleSidebar}
+            className="hidden lg:block p-2 rounded-xl text-gray-400 hover:text-white hover:bg-gray-800/60 transition-colors"
+            title={isSidebarCollapsed ? 'Mở rộng thanh điều hướng' : 'Thu gọn thanh điều hướng'}
+          >
+            {isSidebarCollapsed ? <PanelLeftOpen className="w-5 h-5" /> : <PanelLeftClose className="w-5 h-5" />}
           </button>
         )}
 
