@@ -8,7 +8,6 @@ import { ProjectsPage } from './pages/ProjectsPage';
 import { KanbanBoardPage } from './pages/KanbanBoardPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { UserManagementPage } from './pages/UserManagementPage';
-import { AISprintSummaryModal } from './components/ai/AISprintSummaryModal';
 import { ChatWidget } from './components/chat/ChatWidget';
 import type { Project, Task } from './types/api';
 import { api } from './lib/api';
@@ -27,7 +26,6 @@ const AppContent: React.FC = () => {
   const [tasksProjectId, setTasksProjectId] = useState<string | null>(null);
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [isAISummaryOpen, setIsAISummaryOpen] = useState(false);
 
   // Fetch projects whenever user logs in
   useEffect(() => {
@@ -115,7 +113,6 @@ const AppContent: React.FC = () => {
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         selectedProjectName={selectedProject?.name}
-        onOpenAISummary={() => setIsAISummaryOpen(true)}
       />
 
       <div className="flex-1 flex flex-col min-w-0">
@@ -144,17 +141,13 @@ const AppContent: React.FC = () => {
               project={selectedProject}
               tasks={tasks}
               searchQuery={searchQuery}
-              onOpenAISummary={() => setIsAISummaryOpen(true)}
               onTasksChange={setTasks}
               onRefreshTasks={() => selectedProject && fetchTasks(selectedProject.id)}
             />
           )}
 
           {activeTab === 'dashboard' && (
-            <DashboardPage
-              tasks={tasks}
-              onOpenAISummary={() => setIsAISummaryOpen(true)}
-            />
+            <DashboardPage tasks={tasks} />
           )}
 
           {activeTab === 'admin' && user.role === 'ADMIN' && (
@@ -162,12 +155,6 @@ const AppContent: React.FC = () => {
           )}
         </main>
       </div>
-
-      <AISprintSummaryModal
-        isOpen={isAISummaryOpen}
-        onClose={() => setIsAISummaryOpen(false)}
-        sprintId={''}
-      />
 
       {/* Trợ lý AI — nút nổi dùng được ở mọi trang */}
       <ChatWidget project={selectedProject} tasks={tasks} />

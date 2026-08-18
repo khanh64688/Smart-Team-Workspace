@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, PlusCircle } from 'lucide-react';
 import type { Task, TaskPriority, TaskStatus, User, Sprint } from '../../types/api';
 import { api } from '../../lib/api';
+import { UserAvatar } from '../ui/UserAvatar';
 
 import { useToast } from '../../context/ToastContext';
 
@@ -194,22 +195,25 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
               <label className="block text-xs font-semibold text-gray-300 mb-1.5">
                 Assignee {!canManageMembers && '(Self-assign only)'}
               </label>
-              <select
-                value={assigneeId}
-                onChange={(e) => setAssigneeId(e.target.value)}
-                className="w-full bg-gray-900/80 border border-gray-700/60 text-white rounded-xl px-3.5 py-2.5 text-xs focus:outline-none focus:border-indigo-500"
-              >
-                <option value="">Unassigned</option>
-                {members.map((m) => {
-                  const isMe = currentUserId === m.id;
-                  if (!canManageMembers && !isMe) return null;
-                  return (
-                    <option key={m.id} value={m.id}>
-                      {m.full_name} {isMe ? '(Tôi)' : ''}
-                    </option>
-                  );
-                })}
-              </select>
+              <div className="flex items-center gap-2">
+                <UserAvatar user={members.find((m) => m.id === assigneeId)} size="md" />
+                <select
+                  value={assigneeId}
+                  onChange={(e) => setAssigneeId(e.target.value)}
+                  className="flex-1 min-w-0 bg-gray-900/80 border border-gray-700/60 text-white rounded-xl px-3.5 py-2.5 text-xs focus:outline-none focus:border-indigo-500"
+                >
+                  <option value="">Unassigned</option>
+                  {members.map((m) => {
+                    const isMe = currentUserId === m.id;
+                    if (!canManageMembers && !isMe) return null;
+                    return (
+                      <option key={m.id} value={m.id}>
+                        {m.full_name} {isMe ? '(Tôi)' : ''}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
             </div>
 
             <div>

@@ -60,6 +60,7 @@ Ký hiệu: ✅ được phép · 🟡 được phép có điều kiện (xem c�
 | Xem chi tiết dự án | `GET /projects/{id}` | ✅ | 🟡 | 🟡 | Phải là thành viên |
 | Sửa dự án | `PUT /projects/{id}` | ✅ | 🟡 | ❌ | Phải là `OWNER`/`MANAGER` của dự án |
 | Đóng dự án | `PATCH /projects/{id}/close` | ✅ | 🟡 | ❌ | Chỉ `OWNER` |
+| Mở lại dự án | `PATCH /projects/{id}/reopen` | ✅ | 🟡 | ❌ | Chỉ `OWNER`; đưa dự án `CLOSED` về `ACTIVE` |
 | Xoá dự án | `DELETE /projects/{id}` | ✅ | ❌ | ❌ | Soft delete; **chỉ ADMIN** |
 
 ### 2.3 Thành viên dự án

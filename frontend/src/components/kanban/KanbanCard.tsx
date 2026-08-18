@@ -3,10 +3,12 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { Task, TaskPriority } from '../../types/api';
 import { AlertCircle, MessageSquare, Clock } from 'lucide-react';
+import { UserAvatar } from '../ui/UserAvatar';
 
 interface KanbanCardProps {
   task: Task;
   onClick: () => void;
+  canDrag?: boolean;
 }
 
 const priorityStyles: Record<TaskPriority, { bg: string; text: string; label: string }> = {
@@ -16,7 +18,7 @@ const priorityStyles: Record<TaskPriority, { bg: string; text: string; label: st
   URGENT: { bg: 'bg-rose-500/10 border-rose-500/20', text: 'text-rose-400', label: 'Urgent' },
 };
 
-export const KanbanCard: React.FC<KanbanCardProps> = ({ task, onClick }) => {
+export const KanbanCard: React.FC<KanbanCardProps> = ({ task, onClick, canDrag = true }) => {
   const {
     attributes,
     listeners,
@@ -24,7 +26,12 @@ export const KanbanCard: React.FC<KanbanCardProps> = ({ task, onClick }) => {
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: task.id.toString() });
+  } = useSortable({
+    id: task.id.toString(),
+    // Chỉ tắt việc nhấc card lên. Vẫn giữ droppable để card của người khác
+    // dạt ra nhường chỗ khi kéo — hiệu ứng giống hệt view của PM.
+    disabled: { draggable: !canDrag, droppable: false },
+  });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -46,7 +53,9 @@ export const KanbanCard: React.FC<KanbanCardProps> = ({ task, onClick }) => {
           onClick();
         }
       }}
-      className="glass-panel p-4 rounded-2xl border border-gray-800/80 hover:border-indigo-500/40 cursor-grab active:cursor-grabbing transition-all shadow-md group my-2.5 relative"
+      className={`glass-panel p-4 rounded-2xl border border-gray-800/80 hover:border-indigo-500/40 transition-all shadow-md group my-2.5 relative ${
+        canDrag ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'
+      }`}
     >
       {/* Top Priority Badge & Overdue Indicator */}
       <div className="flex items-center justify-between mb-2">
@@ -74,9 +83,7 @@ export const KanbanCard: React.FC<KanbanCardProps> = ({ task, onClick }) => {
         <div className="flex items-center gap-2">
           {task.assignee ? (
             <div className="flex items-center gap-1.5">
-              <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center text-[9px] font-bold text-white">
-                {task.assignee.full_name?.charAt(0) || 'A'}
-              </div>
+              <UserAvatar user={task.assignee} size="sm" />
               <span className="text-[10px] text-gray-400 font-medium truncate max-w-[80px]">
                 {task.assignee.full_name}
               </span>

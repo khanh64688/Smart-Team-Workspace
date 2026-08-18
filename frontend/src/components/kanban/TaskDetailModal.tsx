@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import { api } from '../../lib/api';
 import { useToast } from '../../context/ToastContext';
 import { ConfirmModal } from '../notifications/ConfirmModal';
+import { UserAvatar } from '../ui/UserAvatar';
 
 interface TaskDetailModalProps {
   isOpen: boolean;
@@ -436,19 +437,22 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                 <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">
                   Assignee {!canManageMembers && '(Locked)'}
                 </label>
-                <select
-                  value={task.assignee_id || ''}
-                  disabled={!canManageMembers}
-                  onChange={(e) => handleAssigneeChange(e.target.value)}
-                  className="w-full bg-gray-800 border border-gray-700 text-white rounded-xl px-3 py-1.5 text-xs font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <option value="">Unassigned</option>
-                  {members.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.full_name} ({m.email})
-                    </option>
-                  ))}
-                </select>
+                <div className="flex items-center gap-2">
+                  <UserAvatar user={members.find((m) => m.id === task.assignee_id) || task.assignee} size="md" />
+                  <select
+                    value={task.assignee_id || ''}
+                    disabled={!canManageMembers}
+                    onChange={(e) => handleAssigneeChange(e.target.value)}
+                    className="flex-1 min-w-0 bg-gray-800 border border-gray-700 text-white rounded-xl px-3 py-1.5 text-xs font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <option value="">Unassigned</option>
+                    {members.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.full_name} ({m.email})
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               <div>

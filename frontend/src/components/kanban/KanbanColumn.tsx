@@ -12,6 +12,7 @@ interface KanbanColumnProps {
   onTaskClick: (task: Task) => void;
   onAddTask: (status: TaskStatus) => void;
   canConfig?: boolean;
+  canDragTask?: (task: Task) => boolean;
 }
 
 const columnHeaderStyles: Record<TaskStatus, { badgeBg: string; text: string }> = {
@@ -28,6 +29,7 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({
   onTaskClick,
   onAddTask,
   canConfig = true,
+  canDragTask,
 }) => {
   const { setNodeRef } = useDroppable({ id });
   const styles = columnHeaderStyles[id];
@@ -58,7 +60,12 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({
       <div ref={setNodeRef} className="flex-1 overflow-y-auto pr-1">
         <SortableContext items={taskIds} strategy={verticalListSortingStrategy}>
           {tasks.map((task) => (
-            <KanbanCard key={task.id} task={task} onClick={() => onTaskClick(task)} />
+            <KanbanCard
+              key={task.id}
+              task={task}
+              onClick={() => onTaskClick(task)}
+              canDrag={canDragTask ? canDragTask(task) : true}
+            />
           ))}
         </SortableContext>
         {tasks.length === 0 && (

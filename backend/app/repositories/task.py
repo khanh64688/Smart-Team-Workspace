@@ -1,7 +1,7 @@
 import uuid
 
 from sqlalchemy import select, or_
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 from datetime import datetime, timezone
 from sqlalchemy import func, select
 
@@ -57,6 +57,9 @@ class TaskRepository:
 
         query = (
             self.db.query(Task)
+            # Nạp sẵn assignee cho cả trang, tránh N+1 khi serialize
+            # TaskResponse.assignee.
+            .options(selectinload(Task.assignee))
             .filter(
                 Task.project_id == project_id,
             )

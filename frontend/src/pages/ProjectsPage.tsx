@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Users, Calendar, ArrowRight, FolderKanban, Edit3, Lock, Globe, Trash2, ShieldCheck } from 'lucide-react';
+import { Plus, Users, Calendar, ArrowRight, FolderKanban, Edit3, Lock, Unlock, Globe, Trash2, ShieldCheck } from 'lucide-react';
 import type { Project } from '../types/api';
 import { useAuth } from '../context/AuthContext';
 import { ProjectModal } from '../components/projects/ProjectModal';
@@ -64,7 +64,7 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({
     return member?.project_role === 'OWNER' || member?.project_role === 'MANAGER';
   };
 
-  const canClose = (project: Project) => {
+  const canToggleStatus = (project: Project) => {
     if (user?.role === 'ADMIN') return true;
     if (user?.role !== 'PM') return false;
     const role = getProjectUserRole(project);
@@ -75,15 +75,19 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({
     return user?.role === 'ADMIN';
   };
 
-  const handleCloseProject = async (project: Project) => {
-    if (!confirm(`Are you sure you want to close "${project.name}"? This will lock the project to read-only.`)) return;
+  const handleToggleProjectStatus = async (project: Project) => {
+    const isClosed = project.status === 'CLOSED';
+    const confirmMessage = isClosed
+      ? `Mở khoá "${project.name}"? Dự án sẽ hoạt động và chỉnh sửa được trở lại.`
+      : `Khoá "${project.name}"? Dự án sẽ chuyển sang chế độ chỉ đọc cho tới khi được mở lại.`;
+    if (!confirm(confirmMessage)) return;
     setActionLoading(project.id);
     try {
-      await api.patch(`/projects/${project.id}/close`);
-      showSuccess('Đã đóng/lưu trữ dự án thành công!');
+      await api.patch(`/projects/${project.id}/${isClosed ? 'reopen' : 'close'}`);
+      showSuccess(isClosed ? 'Đã mở khoá dự án thành công!' : 'Đã đóng/lưu trữ dự án thành công!');
       onRefreshProjects();
     } catch (err: any) {
-      const msg = err.response?.data?.detail || 'Failed to close project.';
+      const msg = err.response?.data?.detail || (isClosed ? 'Failed to reopen project.' : 'Failed to close project.');
       showError(msg);
     } finally {
       setActionLoading(null);
@@ -276,17 +280,21 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({
                     </button>
                   )}
 
-                  {/* Close Project button */}
-                  {canClose(project) && project.status === 'ACTIVE' && (
+                  {/* Close / Reopen Project button */}
+                  {canToggleStatus(project) && (
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleCloseProject(project);
+                        handleToggleProjectStatus(project);
                       }}
-                      className="p-1.5 text-gray-400 hover:text-amber-400 hover:bg-amber-500/10 rounded-lg transition-colors"
-                      title="Close Project"
+                      className={`p-1.5 text-gray-400 rounded-lg transition-colors ${
+                        project.status === 'CLOSED'
+                          ? 'hover:text-emerald-400 hover:bg-emerald-500/10'
+                          : 'hover:text-amber-400 hover:bg-amber-500/10'
+                      }`}
+                      title={project.status === 'CLOSED' ? 'Reopen Project' : 'Close Project'}
                     >
-                      <Lock className="w-4 h-4" />
+                      {project.status === 'CLOSED' ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
                     </button>
                   )}
 

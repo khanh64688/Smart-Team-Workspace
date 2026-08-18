@@ -365,3 +365,75 @@ def test_todo_cannot_jump_directly_to_done(
         response.json()["error"]["code"]
         == "TASK_INVALID_TRANSITION"
     )
+
+def test_task_list_includes_assignee_profile(
+    client,
+    db_session,
+):
+    _, pm_headers = make_user(
+        client,
+        db_session,
+        email="pm-assignee-profile@example.com",
+        role=UserRole.PM,
+    )
+
+    assignee, _ = make_user(
+        client,
+        db_session,
+        email="assignee-profile@example.com",
+    )
+
+    project = create_project(
+        client,
+        pm_headers,
+    )
+
+    project_id = project["id"]
+
+    add_member(
+        client,
+        pm_headers,
+        project_id=project_id,
+        user_id=assignee.id,
+    )
+
+    assigned = create_task(
+        client,
+        pm_headers,
+        project_id=project_id,
+        title="Task có người phụ trách",
+        assignee_id=assignee.id,
+    )
+
+    assert assigned.status_code == 201, assigned.text
+
+    unassigned = create_task(
+        client,
+        pm_headers,
+        project_id=project_id,
+        title="Task chưa giao",
+    )
+
+    assert unassigned.status_code == 201, unassigned.text
+
+    listed = client.get(
+        "/api/v1/tasks",
+        params={"project_id": project_id},
+        headers=pm_headers,
+    )
+
+    assert listed.status_code == 200, listed.text
+
+    by_title = {t["title"]: t for t in listed.json()}
+
+    with_assignee = by_title["Task có người phụ trách"]
+
+    assert with_assignee["assignee"] is not None
+    assert with_assignee["assignee"]["id"] == str(assignee.id)
+    assert with_assignee["assignee"]["full_name"] == assignee.full_name
+    assert "avatar" in with_assignee["assignee"]
+
+    # Không rò rỉ email của thành viên khác ra bảng task.
+    assert "email" not in with_assignee["assignee"]
+
+    assert by_title["Task chưa giao"]["assignee"] is None

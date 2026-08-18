@@ -142,6 +142,39 @@ class ProjectService:
 
         return project
 
+    def reopen(
+        self,
+        project_id: uuid.UUID,
+        actor: User,
+    ) -> Project:
+        project = self.require_project(
+            project_id
+        )
+
+        membership = self.require_member(
+            project_id,
+            actor,
+        )
+
+        if actor.role != UserRole.ADMIN:
+            if (
+                actor.role != UserRole.PM
+                or membership.project_role
+                != ProjectRole.OWNER
+            ):
+                raise api_error(
+                    403,
+                    "PROJECT_OWNER_REQUIRED",
+                    "Chỉ chủ sở hữu được mở lại dự án.",
+                )
+
+        project.status = ProjectStatus.ACTIVE
+
+        self.db.commit()
+        self.db.refresh(project)
+
+        return project
+
     def soft_delete(self, project_id: uuid.UUID, actor: User):
         if actor.role != UserRole.ADMIN: raise api_error(403, "ADMIN_REQUIRED", "Chỉ quản trị viên được xoá dự án.")
         project = self.require_project(project_id); project.deleted_at = datetime.now(timezone.utc); self.db.commit()

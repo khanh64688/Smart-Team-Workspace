@@ -179,6 +179,21 @@ def close_project(
     )
 
 
+@router.patch(
+    "/{project_id}/reopen",
+    response_model=ProjectOut,
+)
+def reopen_project(
+    project_id: uuid.UUID,
+    actor: ProjectOwnerUser,
+    svc: ProjectService = Depends(service),
+):
+    return svc.reopen(
+        project_id,
+        actor,
+    )
+
+
 @router.delete(
     "/{project_id}",
     status_code=204,

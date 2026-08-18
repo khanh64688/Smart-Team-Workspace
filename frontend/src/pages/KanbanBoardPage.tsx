@@ -18,7 +18,7 @@ import { KanbanCard } from '../components/kanban/KanbanCard';
 import { TaskDetailModal } from '../components/kanban/TaskDetailModal';
 import { CreateTaskModal } from '../components/kanban/CreateTaskModal';
 import { SprintModal } from '../components/kanban/SprintModal';
-import { Filter, Plus, Sparkles, RefreshCw, Calendar, Lock, Edit3 } from 'lucide-react';
+import { Filter, Plus, RefreshCw, Calendar, Lock, Edit3 } from 'lucide-react';
 import { api } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -27,7 +27,6 @@ interface KanbanBoardPageProps {
   project: Project | null;
   tasks: Task[];
   searchQuery: string;
-  onOpenAISummary: () => void;
   onTasksChange: (tasks: Task[]) => void;
   onRefreshTasks: () => void;
 }
@@ -43,7 +42,6 @@ export const KanbanBoardPage: React.FC<KanbanBoardPageProps> = ({
   project,
   tasks,
   searchQuery,
-  onOpenAISummary,
   onTasksChange,
   onRefreshTasks,
 }) => {
@@ -88,6 +86,10 @@ export const KanbanBoardPage: React.FC<KanbanBoardPageProps> = ({
     userProjectRole === 'MANAGER' ||
     (project?.visibility === 'PUBLIC' && !!userMember) ||
     !!(userMember as any)?.can_config;
+
+  // Backend cho phép MEMBER tự đổi trạng thái task mình phụ trách
+  // (TaskService.move -> TASK_MOVE_FORBIDDEN chỉ chặn task của người khác).
+  const canMoveTask = (task: Task) => canConfig || task.assignee_id === user?.id;
 
   const canManageSprints = canConfig;
   const canManageMembers = isSystemAdmin || userProjectRole === 'OWNER' || userProjectRole === 'MANAGER';
@@ -156,18 +158,23 @@ export const KanbanBoardPage: React.FC<KanbanBoardPageProps> = ({
   );
 
   const handleDragStart = (event: DragStartEvent) => {
-    if (!canConfig) return;
     const task = tasks.find((t) => t.id === event.active.id);
-    if (task) setActiveTask(task);
+    // Phải dùng cùng cổng quyền với handleDragEnd, nếu không activeTask sẽ
+    // rỗng và DragOverlay không vẽ card bay theo con trỏ.
+    if (!task || !canMoveTask(task)) return;
+    setActiveTask(task);
   };
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveTask(null);
-    if (!over || !canConfig) return;
+    if (!over) return;
 
     const activeId = active.id as string;
     const overId = over.id.toString();
+
+    const currentTask = tasks.find((t) => t.id === activeId);
+    if (!currentTask || !canMoveTask(currentTask)) return;
 
     let targetStatus: TaskStatus | null = null;
     if (['TODO', 'IN_PROGRESS', 'REVIEW', 'DONE'].includes(overId)) {
@@ -178,8 +185,6 @@ export const KanbanBoardPage: React.FC<KanbanBoardPageProps> = ({
     }
 
     if (!targetStatus) return;
-    const currentTask = tasks.find((t) => t.id === activeId);
-    if (!currentTask) return;
 
     if (currentTask.status === targetStatus) {
       const oldIndex = tasks.findIndex((t) => t.id === activeId);
@@ -362,14 +367,6 @@ export const KanbanBoardPage: React.FC<KanbanBoardPageProps> = ({
             <RefreshCw className="w-3.5 h-3.5" />
           </button>
 
-          <button
-            onClick={onOpenAISummary}
-            className="px-3.5 py-2 bg-gradient-to-r from-amber-500 to-indigo-600 hover:from-amber-600 hover:to-indigo-700 text-white rounded-xl text-xs font-semibold shadow-md flex items-center gap-1.5 transition-all"
-          >
-            <Sparkles className="w-3.5 h-3.5" />
-            AI Summary
-          </button>
-
           {canConfig && (
             <button
               onClick={() => setCreateModalStatus('TODO')}
@@ -397,6 +394,7 @@ export const KanbanBoardPage: React.FC<KanbanBoardPageProps> = ({
               title={col.title}
               tasks={filteredTasks.filter((t) => t.status === col.id)}
               canConfig={canConfig}
+              canDragTask={canMoveTask}
               onTaskClick={(task) => setSelectedTaskDetail(task)}
               onAddTask={(status) => setCreateModalStatus(status)}
             />

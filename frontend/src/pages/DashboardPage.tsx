@@ -11,15 +11,15 @@ import {
   ResponsiveContainer,
   Legend,
 } from 'recharts';
-import { CheckCircle2, Clock, AlertTriangle, ListTodo, Sparkles, LayoutDashboard } from 'lucide-react';
+import { CheckCircle2, Clock, AlertTriangle, ListTodo, LayoutDashboard } from 'lucide-react';
 import type { DashboardMetrics, Task } from '../types/api';
 import { StatCardSkeleton, Skeleton } from '../components/ui/Skeleton';
 import { EmptyState } from '../components/ui/EmptyState';
+import { UserAvatar } from '../components/ui/UserAvatar';
 
 interface DashboardPageProps {
   tasks: Task[];
   loading?: boolean;
-  onOpenAISummary: () => void;
 }
 
 const STATUS_COLORS = {
@@ -29,11 +29,11 @@ const STATUS_COLORS = {
   DONE: '#10B981',
 };
 
-export const DashboardPage: React.FC<DashboardPageProps> = ({ tasks, loading = false, onOpenAISummary }) => {
+export const DashboardPage: React.FC<DashboardPageProps> = ({ tasks, loading = false }) => {
   const metrics = React.useMemo<DashboardMetrics>(() => {
     const byStatus = { TODO: 0, IN_PROGRESS: 0, REVIEW: 0, DONE: 0 };
     const byPriority = { LOW: 0, MEDIUM: 0, HIGH: 0, URGENT: 0 };
-    const assigneeMap: Record<string, { name: string; count: number }> = {};
+    const assigneeMap: Record<string, { name: string; avatar?: string | null; count: number }> = {};
     let overdueCount = 0;
 
     tasks.forEach((t) => {
@@ -50,7 +50,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ tasks, loading = f
         const uid = t.assignee.id;
         const name = t.assignee.full_name;
         if (!assigneeMap[uid]) {
-          assigneeMap[uid] = { name, count: 0 };
+          assigneeMap[uid] = { name, avatar: t.assignee.avatar, count: 0 };
         }
         assigneeMap[uid].count++;
       }
@@ -59,6 +59,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ tasks, loading = f
     const byAssignee = Object.entries(assigneeMap).map(([uid, info]) => ({
       user_id: uid,
       user_name: info.name,
+      user_avatar: info.avatar,
       count: info.count,
     }));
 
@@ -98,13 +99,6 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ tasks, loading = f
           </p>
         </div>
 
-        <button
-          onClick={onOpenAISummary}
-          className="px-4 py-2.5 bg-gradient-to-r from-amber-500 to-indigo-600 hover:from-amber-600 hover:to-indigo-700 text-white rounded-xl text-xs font-semibold shadow-lg shadow-indigo-600/30 flex items-center gap-2 transition-all active:scale-95 self-start sm:self-auto"
-        >
-          <Sparkles className="w-4 h-4 text-amber-300" />
-          Generate AI Sprint Report
-        </button>
       </div>
 
       {loading ? (
@@ -227,9 +221,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ tasks, loading = f
                 {metrics.by_assignee.map((item) => (
                   <div key={item.user_id} className="p-4 rounded-2xl bg-gray-900/60 border border-gray-800 flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center font-bold text-xs text-white">
-                        {item.user_name.charAt(0)}
-                      </div>
+                      <UserAvatar user={{ full_name: item.user_name, avatar: item.user_avatar }} size="md" />
                       <div>
                         <p className="text-xs font-semibold text-white">{item.user_name}</p>
                         <p className="text-[10px] text-gray-400">Assigned Tasks</p>

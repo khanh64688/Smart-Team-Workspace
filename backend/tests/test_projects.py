@@ -211,3 +211,28 @@ def test_pm_project_member_cannot_update_project(
     )
 
     assert response.status_code == 403
+
+def test_only_owner_can_reopen(client, db_session):
+    _, pm_headers = make_user(client, db_session, email="pm-reopen@example.com", role=UserRole.PM)
+    member, member_headers = make_user(client, db_session, email="member-reopen@example.com")
+    project_id = create_project(client, pm_headers).json()["id"]
+    client.post(f"/api/v1/projects/{project_id}/members", json={"user_id": str(member.id), "project_role": "MEMBER"}, headers=pm_headers)
+    assert client.patch(f"/api/v1/projects/{project_id}/close", headers=pm_headers).status_code == 200
+    denied = client.patch(f"/api/v1/projects/{project_id}/reopen", headers=member_headers)
+    assert denied.status_code == 403
+    reopened = client.patch(f"/api/v1/projects/{project_id}/reopen", headers=pm_headers)
+    assert reopened.status_code == 200
+    assert reopened.json()["status"] == "ACTIVE"
+
+
+def test_reopened_project_is_editable_again(client, db_session):
+    _, pm_headers = make_user(client, db_session, email="pm-reopen-edit@example.com", role=UserRole.PM)
+    project_id = create_project(client, pm_headers).json()["id"]
+    client.patch(f"/api/v1/projects/{project_id}/close", headers=pm_headers)
+    blocked = client.put(f"/api/v1/projects/{project_id}", json={"name": "Renamed"}, headers=pm_headers)
+    assert blocked.status_code == 409
+    assert blocked.json()["error"]["code"] == "PROJECT_CLOSED"
+    client.patch(f"/api/v1/projects/{project_id}/reopen", headers=pm_headers)
+    allowed = client.put(f"/api/v1/projects/{project_id}", json={"name": "Renamed"}, headers=pm_headers)
+    assert allowed.status_code == 200
+    assert allowed.json()["name"] == "Renamed"

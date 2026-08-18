@@ -4,7 +4,6 @@ import {
   FolderKanban, 
   KanbanSquare, 
   Users, 
-  Sparkles, 
   LogOut,
   Layers,
   Settings,
@@ -17,7 +16,6 @@ interface SidebarProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
   selectedProjectName?: string;
-  onOpenAISummary: () => void;
   isMobileOpen?: boolean;
   onCloseMobile?: () => void;
 }
@@ -26,7 +24,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
   activeTab,
   setActiveTab,
   selectedProjectName,
-  onOpenAISummary,
   isMobileOpen = false,
   onCloseMobile
 }) => {
@@ -114,25 +111,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
             })}
           </nav>
 
-          {/* AI Action Highlight */}
-          <div className="mt-8 mx-2 p-4 rounded-xl bg-gradient-to-br from-indigo-900/60 to-purple-900/60 border border-indigo-500/30 relative overflow-hidden">
-            <div className="absolute -right-4 -bottom-4 w-20 h-20 bg-indigo-500/20 rounded-full blur-xl"></div>
-            <div className="flex items-center gap-2 text-indigo-300 font-semibold text-xs mb-1">
-              <Sparkles className="w-4 h-4 text-amber-400" />
-              AI Assistant
-            </div>
-            <p className="text-xs text-gray-300 mb-3">Instant Sprint summary, blocker breakdown & risks.</p>
-            <button
-              onClick={() => {
-                onOpenAISummary();
-                if (onCloseMobile) onCloseMobile();
-              }}
-              className="w-full py-2 px-3 bg-gradient-to-r from-amber-500 to-indigo-600 hover:from-amber-600 hover:to-indigo-700 text-white rounded-lg text-xs font-semibold shadow-md flex items-center justify-center gap-1.5 transition-all"
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              AI Sprint Report
-            </button>
-          </div>
         </div>
 
         {/* User Footer */}

@@ -182,6 +182,6 @@ export interface DashboardMetrics {
   overdue_tasks: number;
   by_status: Record<TaskStatus, number>;
   by_priority: Record<TaskPriority, number>;
-  by_assignee: Array<{ user_id: string; user_name: string; count: number }>;
+  by_assignee: Array<{ user_id: string; user_name: string; user_avatar?: string | null; count: number }>;
 }
 

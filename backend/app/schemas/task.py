@@ -3,6 +3,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from app.schemas.user import UserPublicResponse
+
 
 TASK_STATUSES = {
     "TODO",
@@ -175,6 +177,10 @@ class TaskResponse(BaseModel):
     description: str | None
 
     assignee_id: uuid.UUID | None
+
+    # Hồ sơ rút gọn của người phụ trách để bảng task vẽ được avatar + tên
+    # mà không rò rỉ email của cả team cho MEMBER.
+    assignee: UserPublicResponse | None = None
 
     status: str
     priority: str
