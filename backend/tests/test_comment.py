@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from app.models import UserRole
 
@@ -494,7 +494,7 @@ def test_update_comment_after_15_minutes_is_rejected(
     assert comment_model is not None
 
     comment_model.created_at = (
-        datetime.now(timezone.utc)
+        datetime.now(UTC)
         - timedelta(minutes=16)
     )
 

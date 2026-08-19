@@ -1,24 +1,21 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy.orm import Session
 
 from app.core.errors import api_error
+from app.models.project_member import ProjectRole
 from app.models.task import Task
 from app.models.user import User, UserRole
-from app.models.project_member import ProjectRole
-
-from app.repositories.task import TaskRepository
 from app.repositories.project import ProjectRepository
-
+from app.repositories.task import TaskRepository
 from app.schemas.task import (
-    TaskCreate,
-    TaskUpdate,
     TaskAssign,
+    TaskCreate,
     TaskMove,
+    TaskUpdate,
 )
-
 from app.services.notification import NotificationService
 from app.services.project import ProjectService
 
@@ -237,7 +234,7 @@ class TaskService:
             priority=payload.priority,
             due_date=payload.due_date,
             position=payload.position,
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
         )
 
         try:
@@ -422,7 +419,7 @@ class TaskService:
 
         if new_status == "DONE":
             task.completed_at = datetime.now(
-                timezone.utc,
+                UTC,
             )
 
         elif current_status == "DONE":

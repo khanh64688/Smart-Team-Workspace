@@ -5,9 +5,8 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, DateTime
+from sqlalchemy import Boolean, DateTime, String, func, text
 from sqlalchemy import Enum as SqlEnum
-from sqlalchemy import String, func, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -85,18 +84,18 @@ class User(Base):
         onupdate=func.now(),
     )
 
-    refresh_tokens: Mapped[list["RefreshToken"]] = relationship(
+    refresh_tokens: Mapped[list[RefreshToken]] = relationship(
         back_populates="user",
         cascade="all, delete-orphan",
         passive_deletes=True,
     )
 
-    owned_projects: Mapped[list["Project"]] = relationship(
+    owned_projects: Mapped[list[Project]] = relationship(
         back_populates="owner",
         foreign_keys="Project.owner_id",
     )
 
-    project_memberships: Mapped[list["ProjectMember"]] = relationship(
+    project_memberships: Mapped[list[ProjectMember]] = relationship(
         back_populates="user",
         cascade="all, delete-orphan",
     )

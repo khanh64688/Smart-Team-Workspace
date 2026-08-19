@@ -9,11 +9,10 @@ from app.services.llm_client import (
     LLMReply,
     ToolCall,
 )
-from app.services.user_service import UserService
 from app.services.notification import NotificationService
 from app.services.project import ProjectService
 from app.services.task import TaskService
-
+from app.services.user_service import UserService
 
 __all__ = [
     "AccessTokenResult",

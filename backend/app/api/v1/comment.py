@@ -10,7 +10,6 @@ from app.schemas.comment import (
 )
 from app.services.comment import CommentService
 
-
 router = APIRouter(
     tags=["Comments"],
 )

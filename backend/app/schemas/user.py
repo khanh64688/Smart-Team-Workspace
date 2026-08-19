@@ -123,7 +123,7 @@ class UserUpdateRequest(StrictRequest):
         return value
 
     @model_validator(mode="after")
-    def require_update_field(self) -> "UserUpdateRequest":
+    def require_update_field(self) -> UserUpdateRequest:
         if not self.model_fields_set:
             raise ValueError(
                 "Phải cung cấp ít nhất một trường cần cập nhật."

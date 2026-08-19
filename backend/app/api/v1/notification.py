@@ -14,7 +14,6 @@ from app.services.notification import (
     NotificationService,
 )
 
-
 router = APIRouter(
     tags=["Notifications"],
 )

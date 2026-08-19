@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from app.models import UserRole
 
@@ -369,7 +369,7 @@ def test_due_soon_notification_is_generated_once(
         project,
     ) = setup_pm_and_member(client, db_session, "notify-due")
 
-    due_date = datetime.now(timezone.utc) + timedelta(hours=5)
+    due_date = datetime.now(UTC) + timedelta(hours=5)
 
     create_task(
         client,
@@ -409,7 +409,7 @@ def test_no_due_soon_notification_beyond_24h(
         project,
     ) = setup_pm_and_member(client, db_session, "notify-far-due")
 
-    due_date = datetime.now(timezone.utc) + timedelta(days=3)
+    due_date = datetime.now(UTC) + timedelta(days=3)
 
     create_task(
         client,
@@ -438,7 +438,7 @@ def test_overdue_notification_is_generated(
         project,
     ) = setup_pm_and_member(client, db_session, "notify-overdue")
 
-    due_date = datetime.now(timezone.utc) - timedelta(days=1)
+    due_date = datetime.now(UTC) - timedelta(days=1)
 
     create_task(
         client,

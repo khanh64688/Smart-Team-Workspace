@@ -5,11 +5,11 @@ from sqlalchemy.orm import Session
 from app.core.errors import api_error
 from app.models.sprint import Sprint
 from app.repositories.sprint import SprintRepository
-from app.services.project import ProjectService
 from app.schemas.sprint import (
     SprintCreate,
     SprintUpdate,
 )
+from app.services.project import ProjectService
 
 MAX_SPRINTS_PER_PROJECT = 10
 class SprintService:

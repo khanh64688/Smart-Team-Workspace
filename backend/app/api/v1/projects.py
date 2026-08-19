@@ -35,7 +35,6 @@ from app.schemas.project import (
 )
 from app.services import ProjectService
 
-
 router = APIRouter(
     prefix="/projects",
     tags=["Projects"],

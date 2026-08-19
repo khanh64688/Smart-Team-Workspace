@@ -1,8 +1,8 @@
 import uuid
 
-from sqlalchemy import select
-from sqlalchemy.orm import Session
 from sqlalchemy import func, select
+from sqlalchemy.orm import Session
+
 from app.models.sprint import Sprint
 from app.models.task import Task
 

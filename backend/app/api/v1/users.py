@@ -21,6 +21,7 @@ from app.schemas.common import (
     PaginationMeta,
 )
 from app.schemas.user import (
+    AdminUserCreateRequest,
     UserActiveUpdateRequest,
     UserListResponse,
     UserPublicResponse,
@@ -28,10 +29,8 @@ from app.schemas.user import (
     UserRoleUpdateRequest,
     UserSearchResponse,
     UserUpdateRequest,
-    AdminUserCreateRequest,
 )
 from app.services import AuthService, UserService
-
 
 router = APIRouter(
     prefix="/users",

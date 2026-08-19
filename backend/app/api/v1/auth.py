@@ -19,7 +19,6 @@ from app.schemas.common import (
 from app.schemas.user import UserResponse
 from app.services import AuthService
 
-
 router = APIRouter(
     prefix="/auth",
     tags=["Authentication"],

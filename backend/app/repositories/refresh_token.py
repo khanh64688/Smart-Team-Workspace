@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import delete, func, select, update
 from sqlalchemy.orm import Session
@@ -105,7 +105,7 @@ class RefreshTokenRepository:
             refresh_token.revoked_at = (
                 revoked_at
                 if revoked_at is not None
-                else datetime.now(timezone.utc)
+                else datetime.now(UTC)
             )
 
             self.db.flush()
@@ -152,7 +152,7 @@ class RefreshTokenRepository:
         revoke_time = (
             revoked_at
             if revoked_at is not None
-            else datetime.now(timezone.utc)
+            else datetime.now(UTC)
         )
 
         statement = (

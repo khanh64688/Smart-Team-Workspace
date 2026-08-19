@@ -1,15 +1,7 @@
 from fastapi import APIRouter
 
-from app.api.v1 import auth
-from app.api.v1 import users
-from app.api.v1 import projects
-from app.api.v1 import sprint
-from app.api.v1 import task
-from app.api.v1 import comment
-from app.api.v1 import notification
-from app.api.v1 import chat
+from app.api.v1 import auth, chat, comment, notification, projects, sprint, task, users
 from app.core.config import settings
-
 
 # API version prefix được cấu hình tập trung qua settings/.env.
 # Prefix của từng resource được khai báo trong router của module tương ứng.

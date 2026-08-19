@@ -13,7 +13,6 @@ from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
 
-
 # Đường dẫn tới thư mục backend/
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 
@@ -51,11 +50,10 @@ os.environ["SECRET_KEY"] = (
 )
 
 
+from app import models as app_models  # noqa: E402, F401
 from app.database import Base, get_db  # noqa: E402
 from app.main import app as fastapi_app  # noqa: E402
 from app.models import User, UserRole  # noqa: E402
-from app import models as app_models  # noqa: E402, F401
-
 
 if is_sqlite:
     test_engine = create_engine(

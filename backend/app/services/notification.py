@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy.orm import Session
 
@@ -8,7 +8,6 @@ from app.models.notification import Notification, NotificationType
 from app.models.task import Task
 from app.models.user import User
 from app.repositories.notification import NotificationRepository
-
 
 # Ngưỡng "sắp đến hạn" theo US-18.
 DUE_SOON_WINDOW = timedelta(hours=24)
@@ -192,7 +191,7 @@ class NotificationService:
         mỗi loại, kể cả khi polling gọi lại liên tục.
         """
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         created = 0
 
@@ -228,7 +227,7 @@ class NotificationService:
         # datetime.min làm mốc dưới để lấy mọi task đã qua deadline.
         overdue_tasks = self.repo.list_tasks_due_between(
             assignee_id=actor.id,
-            start=datetime.min.replace(tzinfo=timezone.utc),
+            start=datetime.min.replace(tzinfo=UTC),
             end=now,
         )
 

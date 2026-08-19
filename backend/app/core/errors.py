@@ -1,6 +1,13 @@
 from typing import Any
 
-from app.core.exceptions import BadRequestError, ConflictError, ForbiddenError, NotFoundError, ServiceError, UnauthorizedError
+from app.core.exceptions import (
+    BadRequestError,
+    ConflictError,
+    ForbiddenError,
+    NotFoundError,
+    ServiceError,
+    UnauthorizedError,
+)
 
 
 def api_error(status: int, code: str, message: str, details: Any = None) -> ServiceError:

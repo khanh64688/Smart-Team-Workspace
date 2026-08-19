@@ -58,7 +58,7 @@ Bộ test chia làm hai lớp, bổ sung cho nhau:
 
 | Lớp | File | Câu hỏi trả lời |
 |---|---|---|
-| **Test theo module** | `test_auth`, `test_projects`, `test_sprint`, `test_task`, `test_tasks`, `test_comment`, `test_notification`, `test_users`, `test_role_permissions` | Từng endpoint có đúng hợp đồng API không? |
+| **Test theo module** | `test_auth`, `test_projects`, `test_sprint`, `test_task`, `test_comment`, `test_notification`, `test_users`, `test_role_permissions` | Từng endpoint có đúng hợp đồng API không? |
 | **Integration toàn luồng** | `test_integration_flow` *(mới)* | Ghép các module lại thì nghiệp vụ có chạy thông không? |
 
 Lớp thứ hai là phần bổ sung của đợt này. Trước đó mỗi file test tự dựng user và project riêng rồi kiểm tra một endpoint — không có test nào đi từ đăng ký đến khi task xong việc. Những lỗi chỉ lộ ra khi ghép module (kiểu dữ liệu lệch giữa các tầng, thiếu `commit`, phân quyền không nhất quán giữa `ProjectService` và `TaskService`) sẽ lọt lưới.
@@ -72,15 +72,14 @@ Lớp thứ hai là phần bổ sung của đợt này. Trước đó mỗi file
 | File test | Số test | Kết quả |
 |---|--:|:--:|
 | `test_integration_flow.py` *(mới)* | 21 | ✅ |
-| `test_task.py` | 17 | ✅ |
+| `test_task.py` | 20 | ✅ |
 | `test_sprint.py` | 13 | ✅ |
 | `test_notification.py` | 13 | ✅ |
+| `test_projects.py` | 13 | ✅ |
 | `test_comment.py` | 12 | ✅ |
-| `test_projects.py` | 11 | ✅ |
 | `test_auth.py` | 11 | ✅ |
 | `test_users.py` | 7 | ✅ |
 | `test_role_permissions.py` | 7 | ✅ |
-| `test_tasks.py` | 5 | ✅ |
 | **Tổng** | **117** | **117 đạt / 0 hỏng** |
 
 ---
@@ -211,7 +210,7 @@ Không có lỗi chức năng nào được phát hiện trong đợt này — 1
 | D-01 | **Cao** | `ruff check .` báo **103 lỗi** trên mã nguồn có sẵn → job *Backend - lint & test* trong CI sẽ đỏ, kéo theo quy tắc "CI đỏ thì không merge" bị vô hiệu trên thực tế. Phân bố: `I001` unsorted-imports 36 · `UP017` datetime-timezone-utc 24 · `E702` 15 · `E701` 11 · `UP037` 6 · `UP042` 5 · còn lại 6. **71 lỗi tự sửa được** bằng `ruff check --fix .` | ⚠️ Chưa xử lý — nằm ngoài phạm vi đợt này, cần một PR riêng |
 | D-02 | Trung bình | Thiếu `backend/.env.test` nên không chạy được pytest sau khi clone. File mẫu `.env.test.example` lại ghi credentials (`postgresql:postgresql`) **không khớp** `docker-compose.yml` (`twl:twlpass`) | ✅ Đã sửa `.env.test.example` cho khớp compose và bổ sung hướng dẫn tạo database test |
 | D-03 | Trung bình | `docs/test-report.md` được README trỏ tới nhưng không tồn tại | ✅ Chính là tài liệu này |
-| D-04 | Thấp | Hai file test trùng chức năng: `test_task.py` (17 test) và `test_tasks.py` (5 test) cùng kiểm thử module Task, đều tự định nghĩa helper `make_user` riêng | ⚠️ Nên gộp; chưa xử lý để tránh đụng nhánh của TV4 |
+| D-04 | Thấp | Hai file test trùng chức năng: `test_task.py` (17 test) và `test_tasks.py` (6 test) cùng kiểm thử module Task, đều tự định nghĩa helper `make_user` riêng | ✅ Đã gộp vào `test_task.py` (20 test): dùng chung một bộ helper, bỏ 3 test trùng, giữ lại các assert mã lỗi của `test_tasks.py` |
 | D-05 | Thấp | Không có test nào dùng lại fixture `register_user` / `login_user` / `auth_headers` sẵn có trong `conftest.py`; mỗi file tự viết helper riêng | ⚠️ Ghi nhận để dọn sau |
 | D-06 | Thông tin | Cảnh báo `StarletteDeprecationWarning: Using httpx with starlette.testclient is deprecated; install httpx2 instead` xuất hiện mỗi lần chạy | Chưa ảnh hưởng; theo dõi khi nâng Starlette |
 

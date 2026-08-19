@@ -5,7 +5,6 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.schemas.user import UserPublicResponse
 
-
 TASK_STATUSES = {
     "TODO",
     "IN_PROGRESS",

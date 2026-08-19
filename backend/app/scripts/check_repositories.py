@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from app.database import SessionLocal
 from app.models import UserRole
@@ -91,7 +91,7 @@ def main() -> None:
             jti=jti,
             user_id=user.id,
             expires_at=(
-                datetime.now(timezone.utc)
+                datetime.now(UTC)
                 + timedelta(days=7)
             ),
         )

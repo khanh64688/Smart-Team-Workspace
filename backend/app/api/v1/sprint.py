@@ -10,7 +10,6 @@ from app.schemas.sprint import (
 )
 from app.services.sprint import SprintService
 
-
 router = APIRouter(
     tags=["Sprints"],
 )

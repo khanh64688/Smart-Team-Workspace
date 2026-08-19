@@ -34,7 +34,6 @@ from app.repositories import (
     UserRepository,
 )
 
-
 # Khai báo cơ chế xác thực Bearer token cho FastAPI và Swagger.
 #
 # auto_error=False rất quan trọng:

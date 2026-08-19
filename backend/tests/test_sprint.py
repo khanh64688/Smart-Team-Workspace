@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from app.models import UserRole
 
@@ -8,7 +8,7 @@ def make_sprint_payload(
     name: str = "Sprint 1",
     status: str = "ACTIVE",
 ):
-    start = datetime.now(timezone.utc) + timedelta(days=1)
+    start = datetime.now(UTC) + timedelta(days=1)
     end = start + timedelta(days=7)
 
     return {
@@ -21,8 +21,9 @@ def make_sprint_payload(
 
 
 def make_user(client, db_session, *, email: str, role: UserRole):
-    from app.models import User
     import uuid
+
+    from app.models import User
 
     response = client.post(
         "/api/v1/auth/register",
@@ -275,7 +276,7 @@ def test_create_sprint_rejects_invalid_dates(
 
     project = create_project(client, pm_headers)
 
-    start = datetime.now(timezone.utc) + timedelta(days=5)
+    start = datetime.now(UTC) + timedelta(days=5)
     end = start - timedelta(days=1)
 
     response = client.post(

@@ -2,7 +2,6 @@ import uuid
 
 from app.models import User, UserRole
 
-
 PASSWORD = "Password123"
 
 

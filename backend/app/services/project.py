@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import inspect, text
 from sqlalchemy.exc import IntegrityError
@@ -177,7 +177,7 @@ class ProjectService:
 
     def soft_delete(self, project_id: uuid.UUID, actor: User):
         if actor.role != UserRole.ADMIN: raise api_error(403, "ADMIN_REQUIRED", "Chỉ quản trị viên được xoá dự án.")
-        project = self.require_project(project_id); project.deleted_at = datetime.now(timezone.utc); self.db.commit()
+        project = self.require_project(project_id); project.deleted_at = datetime.now(UTC); self.db.commit()
 
     def add_member(self, project_id: uuid.UUID, payload: MemberCreate, actor: User):
         manager = self.require_manager(project_id, actor)

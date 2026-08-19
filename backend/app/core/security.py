@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from enum import Enum
 from typing import Literal, cast
 
@@ -12,7 +12,6 @@ from jwt import InvalidTokenError as PyJWTInvalidTokenError
 from pwdlib import PasswordHash
 
 from app.core.config import settings
-
 
 TokenType = Literal["access", "refresh"]
 
@@ -199,12 +198,12 @@ def decode_token(
 
         issued_at = datetime.fromtimestamp(
             payload["iat"],
-            tz=timezone.utc,
+            tz=UTC,
         )
 
         expires_at = datetime.fromtimestamp(
             payload["exp"],
-            tz=timezone.utc,
+            tz=UTC,
         )
     except (
         KeyError,
@@ -246,7 +245,7 @@ def _create_token(
     """
     Hàm nội bộ dùng chung cho access token và refresh token.
     """
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     expires_at = now + lifetime
     jti = str(uuid.uuid4())
 

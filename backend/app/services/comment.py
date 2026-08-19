@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy.orm import Session
 
@@ -11,7 +11,6 @@ from app.repositories.task import TaskRepository
 from app.schemas.comment import CommentCreate, CommentUpdate
 from app.services.notification import NotificationService
 from app.services.project import ProjectService
-
 
 COMMENT_EDIT_LIMIT = timedelta(minutes=15)
 
@@ -248,7 +247,7 @@ class CommentService:
         15 phút được phép chỉnh sửa hay không.
         """
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         created_at = comment.created_at
 
@@ -256,7 +255,7 @@ class CommentService:
         # không có timezone.
         if created_at.tzinfo is None:
             created_at = created_at.replace(
-                tzinfo=timezone.utc,
+                tzinfo=UTC,
             )
 
         elapsed = now - created_at

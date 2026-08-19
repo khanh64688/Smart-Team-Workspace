@@ -1,9 +1,8 @@
 import uuid
+from datetime import UTC, datetime
 
-from sqlalchemy import select, or_
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, selectinload
-from datetime import datetime, timezone
-from sqlalchemy import func, select
 
 from app.models.sprint import Sprint
 from app.models.task import Task
@@ -102,7 +101,7 @@ class TaskRepository:
 
         # Overdue
         if overdue:
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
 
             query = query.filter(
                 Task.due_date.is_not(None),

@@ -11,9 +11,8 @@ from pydantic import (
     model_validator,
 )
 
-from app.schemas.common import MessageResponse, StrictRequest
+from app.schemas.common import StrictRequest
 from app.schemas.user import UserResponse
-
 
 PasswordValue = Annotated[
     str,
@@ -101,7 +100,7 @@ class RegisterRequest(StrictRequest):
     @model_validator(mode="after")
     def validate_password_confirmation(
         self,
-    ) -> "RegisterRequest":
+    ) -> RegisterRequest:
         if self.password != self.confirm_password:
             raise ValueError(
                 "Mật khẩu xác nhận không khớp."

@@ -12,7 +12,6 @@ from app.schemas.task import (
 )
 from app.services.task import TaskService
 
-
 router = APIRouter(
     prefix="/tasks",
     tags=["Tasks"],
