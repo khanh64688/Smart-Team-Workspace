@@ -7,7 +7,7 @@ on:
   pull_request:
     branches: [develop, main]
   push:
-    branches: [develop, main, 'feature/**']
+    branches: [develop, main]
 
 concurrency:
   group: ci-${{ github.head_ref || github.ref }}
@@ -20,6 +20,22 @@ jobs:
   backend:
     name: Backend - lint & test
     runs-on: ubuntu-latest
+
+    # Pytest cần Postgres thật: model dùng kiểu UUID/ENUM riêng của Postgres.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: stw_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     defaults:
       run:
         working-directory: backend
@@ -40,6 +56,10 @@ jobs:
         run: ruff check --output-format=github .
 
       - name: Test (pytest)
+        # backend/.env.test bị gitignore nên CI cấp TEST_DATABASE_URL qua env.
+        # Tên database phải kết thúc bằng '_test' — conftest.py chặn nếu không.
+        env:
+          TEST_DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/stw_test
         # Mã 5 = chưa có test nào, không nên làm đỏ PR ở giai đoạn đầu dự án.
         run: pytest --cov=app --cov-report=term-missing || [ $? -eq 5 ]
 

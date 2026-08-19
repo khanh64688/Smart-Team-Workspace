@@ -14,7 +14,7 @@ if TYPE_CHECKING:
     from app.models.user import User
 
 
-class NotificationType(str, enum.Enum):
+class NotificationType(enum.StrEnum):
     """
     Ba nguồn sinh thông báo của US-18, cộng thêm mức leo thang
     TASK_OVERDUE khi task đã qua deadline.

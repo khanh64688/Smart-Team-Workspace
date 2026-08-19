@@ -9,7 +9,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database import Base
 
 
-class ProjectRole(str, enum.Enum):
+class ProjectRole(enum.StrEnum):
     OWNER = "OWNER"
     MANAGER = "MANAGER"
     MEMBER = "MEMBER"

@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from app.models.refresh_token import RefreshToken
 
 
-class UserRole(str, enum.Enum):
+class UserRole(enum.StrEnum):
     ADMIN = "ADMIN"
     PM = "PM"
     MEMBER = "MEMBER"

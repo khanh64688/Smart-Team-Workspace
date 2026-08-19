@@ -9,12 +9,12 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database import Base
 
 
-class ProjectStatus(str, enum.Enum):
+class ProjectStatus(enum.StrEnum):
     ACTIVE = "ACTIVE"
     CLOSED = "CLOSED"
 
 
-class ProjectVisibility(str, enum.Enum):
+class ProjectVisibility(enum.StrEnum):
     """Chế độ hiển thị của dự án.
 
     PUBLIC  – mọi member trong dự án đều có thể thêm / sửa / xoá bảng và task.
